@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Tracker</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ffeef8 0%, #ffd4e5 50%, #ffb3d9 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(255, 105, 180, 0.3);
+        }
+
+        .greeting {
+            text-align: center;
+            font-size: 2em;
+            color: #d63384;
+            margin-bottom: 30px;
+            font-weight: 600;
+            text-shadow: 2px 2px 4px rgba(255, 192, 203, 0.5);
+        }
+
+        .section {
+            margin-bottom: 35px;
+            background: #fff5f9;
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid #ffc0cb;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: #c2185b;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .task-input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"], textarea {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ffb3d9;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #d63384;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #ff69b4 0%, #d63384 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(214, 51, 132, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .task-list {
+            list-style: none;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ffd4e5;
+            transition: background-color 0.3s;
+        }
+
+        .task-item:hover {
+            background: #fff0f6;
+        }
+
+        .task-item.completed {
+            opacity: 0.6;
+        }
+
+        .task-item.completed .task-text {
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #d63384;
+        }
+
+        .task-text {
+            flex: 1;
+            color: #333;
+        }
+
+        .delete-btn {
+            padding: 6px 12px;
+            background: #ff4d6d;
+            font-size: 0.9em;
+        }
+
+        .water-tracker {
+            text-align: center;
+        }
+
+        .water-reminder {
+            font-size: 1.3em;
+            color: #c2185b;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .water-glasses {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .water-glass {
+            width: 50px;
+            height: 60px;
+            border: 3px solid #69b3ff;
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+            background: white;
+            transition: all 0.3s;
+        }
+
+        .water-glass:hover {
+            transform: scale(1.1);
+        }
+
+        .water-glass.filled {
+            background: linear-gradient(to top, #69b3ff 0%, #a0d5ff 100%);
+            border-color: #4a9fee;
+        }
+
+        .water-glass::after {
+            content: '';
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 3px;
+            background: rgba(105, 179, 255, 0.3);
+        }
+
+        .water-count {
+            margin-top: 15px;
+            font-size: 1.1em;
+            color: #4a9fee;
+            font-weight: 600;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        .loading {
+            text-align: center;
+            color: #d63384;
+            padding: 20px;
+        }
+
+        /* Setup Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            margin: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.8em;
+            color: #d63384;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #c2185b;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ffb3d9;
+            border-radius: 10px;
+            font-size: 1em;
+        }
+
+        .setup-info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 0.85em;
+            line-height: 1.6;
+        }
+
+        .setup-info a {
+            color: #d63384;
+            font-weight: 600;
+        }
+
+        .setup-info strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #c2185b;
+        }
+
+        .settings-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.5em;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(214, 51, 132, 0.4);
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            font-size: 0.9em;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .sync-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #28a745;
+            margin-left: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Setup Modal -->
+    <div class="modal active" id="setupModal">
+        <div class="modal-content">
+            <div class="modal-title">🔥 Firebase Setup</div>
+            <form id="setupForm">
+                <div class="setup-info">
+                    <strong>Quick Setup:</strong>
+                    1. Go to <a href="https://console.firebase.google.com/" target="_blank">Firebase Console</a><br>
+                    2. Create a new project<br>
+                    3. Enable Realtime Database (test mode)<br>
+                    4. Get your config from Project Settings → Web App<br>
+                    5. Paste the 7 values below ⬇️
+                </div>
+
+                <div class="form-group">
+                    <label for="firebaseApiKey">API Key:</label>
+                    <input type="text" id="firebaseApiKey" required placeholder="AIzaSy...">
+                </div>
+                <div class="form-group">
+                    <label for="firebaseAuthDomain">Auth Domain:</label>
+                    <input type="text" id="firebaseAuthDomain" required placeholder="your-app.firebaseapp.com">
+                </div>
+                <div class="form-group">
+                    <label for="firebaseDatabaseURL">Database URL:</label>
+                    <input type="text" id="firebaseDatabaseURL" required placeholder="https://your-app.firebaseio.com">
+                </div>
+                <div class="form-group">
+                    <label for="firebaseProjectId">Project ID:</label>
+                    <input type="text" id="firebaseProjectId" required placeholder="your-app">
+                </div>
+                <div class="form-group">
+                    <label for="firebaseStorageBucket">Storage Bucket:</label>
+                    <input type="text" id="firebaseStorageBucket" required placeholder="your-app.appspot.com">
+                </div>
+                <div class="form-group">
+                    <label for="firebaseMessagingSenderId">Messaging Sender ID:</label>
+                    <input type="text" id="firebaseMessagingSenderId" required placeholder="123456789">
+                </div>
+                <div class="form-group">
+                    <label for="firebaseAppId">App ID:</label>
+                    <input type="text" id="firebaseAppId" required placeholder="1:123456789:web:abc123">
+                </div>
+
+                <button type="submit" style="width: 100%; margin-top: 10px;">Connect 🚀</button>
+                
+                <div class="setup-info" style="margin-top: 15px;">
+                    <strong>⚠️ Share these credentials:</strong> All users must use the SAME Firebase info to see shared tasks!
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="statusMessage"></div>
+
+        <div class="greeting" id="greeting">
+            Good Morning My Loves 🥰 <span class="sync-indicator"></span>
+        </div>
+
+        <!-- Daily Tasks Section -->
+        <div class="section">
+            <div class="section-title">📝 Today's Tasks</div>
+            <div class="task-input-container">
+                <input type="text" id="taskInput" placeholder="Add a new task...">
+                <button onclick="addTask()">Add Task</button>
+            </div>
+            <ul class="task-list" id="taskList">
+                <div class="loading">Connecting...</div>
+            </ul>
+        </div>
+
+        <!-- Meal Planning Section -->
+        <div class="section">
+            <div class="section-title">🍽️ Meal Planning</div>
+            <textarea id="mealInput" placeholder="What are we eating today?"></textarea>
+            <button onclick="saveMealPlan()" style="margin-top: 10px; width: 100%;">Save Meal Plan</button>
+            <div id="mealDisplay" style="margin-top: 15px; padding: 15px; background: white; border-radius: 10px; min-height: 50px;">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Water Tracker Section -->
+        <div class="section water-tracker">
+            <div class="water-reminder">💧 Make sure to drink water!</div>
+            <div class="water-glasses" id="waterGlasses"></div>
+            <div class="water-count" id="waterCount">0 / 8 glasses</div>
+        </div>
+
+        <button class="settings-btn" onclick="openSettings()">⚙️</button>
+    </div>
+
+    <script>
+        let db;
+        let firebaseInitialized = false;
+
+        function initFirebase(config) {
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(config);
+                }
+                db = firebase.database();
+                firebaseInitialized = true;
+                showStatus('Connected! All users will see the same data 🔥', 'success');
+                setupRealtimeListeners();
+                return true;
+            } catch (error) {
+                showStatus('Connection failed: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        function setupRealtimeListeners() {
+            const dateKey = getTodayKey();
+            
+            db.ref(`tasks/${dateKey}`).on('value', (snapshot) => {
+                displayTasks(snapshot.val() || {});
+            });
+            
+            db.ref(`meals/${dateKey}`).on('value', (snapshot) => {
+                displayMealPlan(snapshot.val() || '');
+            });
+            
+            db.ref(`water/${dateKey}`).on('value', (snapshot) => {
+                displayWaterTracker(snapshot.val() || Array(8).fill(false));
+            });
+        }
+
+        function getTodayKey() {
+            const today = new Date();
+            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
+
+        function checkSetup() {
+            const config = localStorage.getItem('firebase_config');
+            if (!config) {
+                document.getElementById('setupModal').classList.add('active');
+                return false;
+            }
+            try {
+                return initFirebase(JSON.parse(config));
+            } catch (error) {
+                document.getElementById('setupModal').classList.add('active');
+                return false;
+            }
+        }
+
+        document.getElementById('setupForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const config = {
+                apiKey: document.getElementById('firebaseApiKey').value.trim(),
+                authDomain: document.getElementById('firebaseAuthDomain').value.trim(),
+                databaseURL: document.getElementById('firebaseDatabaseURL').value.trim(),
+                projectId: document.getElementById('firebaseProjectId').value.trim(),
+                storageBucket: document.getElementById('firebaseStorageBucket').value.trim(),
+                messagingSenderId: document.getElementById('firebaseMessagingSenderId').value.trim(),
+                appId: document.getElementById('firebaseAppId').value.trim()
+            };
+
+            localStorage.setItem('firebase_config', JSON.stringify(config));
+
+            if (initFirebase(config)) {
+                document.getElementById('setupModal').classList.remove('active');
+                updateGreeting();
+            }
+        });
+
+        function openSettings() {
+            document.getElementById('setupModal').classList.add('active');
+            const config = JSON.parse(localStorage.getItem('firebase_config') || '{}');
+            document.getElementById('firebaseApiKey').value = config.apiKey || '';
+            document.getElementById('firebaseAuthDomain').value = config.authDomain || '';
+            document.getElementById('firebaseDatabaseURL').value = config.databaseURL || '';
+            document.getElementById('firebaseProjectId').value = config.projectId || '';
+            document.getElementById('firebaseStorageBucket').value = config.storageBucket || '';
+            document.getElementById('firebaseMessagingSenderId').value = config.messagingSenderId || '';
+            document.getElementById('firebaseAppId').value = config.appId || '';
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.className = `status-message ${type}`;
+            statusEl.textContent = message;
+            if (type === 'success') {
+                setTimeout(() => statusEl.innerHTML = '', 3000);
+            }
+        }
+
+        function updateGreeting() {
+            const hour = new Date().getHours();
+            const greetingEl = document.getElementById('greeting');
+            
+            let text = '';
+            if (hour < 12) {
+                text = 'Good Morning My Loves 🥰';
+            } else if (hour < 17) {
+                text = 'Good Afternoon Honey Bunnies 🥰';
+            } else {
+                text = 'Hi My Loves 🥰';
+            }
+            
+            greetingEl.innerHTML = text + ' <span class="sync-indicator"></span>';
+        }
+
+        async function addTask() {
+            if (!firebaseInitialized) return;
+            const input = document.getElementById('taskInput');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            try {
+                await db.ref(`tasks/${getTodayKey()}/${Date.now()}`).set({
+                    text: text,
+                    completed: false,
+                    createdAt: firebase.database.ServerValue.TIMESTAMP
+                });
+                input.value = '';
+            } catch (error) {
+                showStatus('Failed to add task', 'error');
+            }
+        }
+
+        async function toggleTask(taskId) {
+            if (!firebaseInitialized) return;
+            const taskRef = db.ref(`tasks/${getTodayKey()}/${taskId}`);
+            const snapshot = await taskRef.once('value');
+            const task = snapshot.val();
+            if (task) {
+                await taskRef.update({ completed: !task.completed });
+            }
+        }
+
+        async function deleteTask(taskId) {
+            if (!firebaseInitialized) return;
+            await db.ref(`tasks/${getTodayKey()}/${taskId}`).remove();
+        }
+
+        function displayTasks(tasksObj) {
+            const taskList = document.getElementById('taskList');
+            const tasks = Object.entries(tasksObj).map(([id, task]) => ({ id, ...task }));
+            
+            if (tasks.length === 0) {
+                taskList.innerHTML = '<div class="empty-state">No tasks yet. Add your first task above!</div>';
+                return;
+            }
+            
+            taskList.innerHTML = tasks.map(task => `
+                <li class="task-item ${task.completed ? 'completed' : ''}">
+                    <input type="checkbox" ${task.completed ? 'checked' : ''} 
+                           onchange="toggleTask('${task.id}')">
+                    <span class="task-text">${escapeHtml(task.text)}</span>
+                    <button class="delete-btn" onclick="deleteTask('${task.id}')">Delete</button>
+                </li>
+            `).join('');
+        }
+
+        async function saveMealPlan() {
+            if (!firebaseInitialized) return;
+            const text = document.getElementById('mealInput').value.trim();
+            await db.ref(`meals/${getTodayKey()}`).set(text);
+        }
+
+        function displayMealPlan(text) {
+            document.getElementById('mealInput').value = text;
+            const display = document.getElementById('mealDisplay');
+            if (text) {
+                display.innerHTML = `<div style="white-space: pre-wrap; color: #333;">${escapeHtml(text)}</div>`;
+            } else {
+                display.innerHTML = '<div class="empty-state">No meal plan yet</div>';
+            }
+        }
+
+        function initWaterGlasses() {
+            const container = document.getElementById('waterGlasses');
+            container.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                const glass = document.createElement('div');
+                glass.className = 'water-glass';
+                glass.onclick = () => toggleWaterGlass(i);
+                container.appendChild(glass);
+            }
+        }
+
+        async function toggleWaterGlass(index) {
+            if (!firebaseInitialized) return;
+            const snapshot = await db.ref(`water/${getTodayKey()}`).once('value');
+            let waterData = snapshot.val() || Array(8).fill(false);
+            if (!Array.isArray(waterData) || waterData.length !== 8) {
+                waterData = Array(8).fill(false);
+            }
+            waterData[index] = !waterData[index];
+            await db.ref(`water/${getTodayKey()}`).set(waterData);
+        }
+
+        function displayWaterTracker(waterData) {
+            if (!Array.isArray(waterData) || waterData.length !== 8) {
+                waterData = Array(8).fill(false);
+            }
+            const glasses = document.querySelectorAll('.water-glass');
+            glasses.forEach((glass, index) => {
+                if (waterData[index]) {
+                    glass.classList.add('filled');
+                } else {
+                    glass.classList.remove('filled');
+                }
+            });
+            const count = waterData.filter(g => g).length;
+            document.getElementById('waterCount').textContent = `${count} / 8 glasses`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        document.getElementById('taskInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTask();
+        });
+
+        let mealSaveTimeout;
+        document.getElementById('mealInput').addEventListener('input', () => {
+            clearTimeout(mealSaveTimeout);
+            mealSaveTimeout = setTimeout(saveMealPlan, 1000);
+        });
+
+        initWaterGlasses();
+        updateGreeting();
+        checkSetup();
+        setInterval(updateGreeting, 60000);
+    </script>
+</body>
+</html>
