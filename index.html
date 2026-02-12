@@ -431,11 +431,13 @@
         <!-- Meal Planning Section -->
         <div class="section">
             <div class="section-title">🍽️ Meal Planning</div>
-            <textarea id="mealInput" placeholder="What are we eating today?"></textarea>
-            <button onclick="saveMealPlan()" style="margin-top: 10px; width: 100%;">Save Meal Plan</button>
-            <div id="mealDisplay" style="margin-top: 15px; padding: 15px; background: white; border-radius: 10px; min-height: 50px;">
-                <div class="loading">Loading...</div>
+            <div class="task-input-container">
+                <input type="text" id="mealInput" placeholder="Add a meal...">
+                <button onclick="addMeal()">Add Meal</button>
             </div>
+            <ul class="task-list" id="mealList">
+                <div class="loading">Loading...</div>
+            </ul>
         </div>
 
         <!-- Water Tracker Section -->
@@ -476,7 +478,7 @@
             });
             
             db.ref(`meals/${dateKey}`).on('value', (snapshot) => {
-                displayMealPlan(snapshot.val() || '');
+                displayMeals(snapshot.val() || {});
             });
             
             db.ref(`water/${dateKey}`).on('value', (snapshot) => {
@@ -637,22 +639,43 @@
             `).join('');
         }
 
-        async function saveMealPlan() {
+        async function addMeal() {
             if (!firebaseInitialized) return;
             const input = document.getElementById('mealInput');
             const text = input.value.trim();
-            await db.ref(`meals/${getTodayKey()}`).set(text);
-            input.value = ''; // Clear the input after saving
-            showStatus('Meal plan saved! 🍽️', 'success');
+            if (!text) return;
+            
+            try {
+                await db.ref(`meals/${getTodayKey()}/${Date.now()}`).set({
+                    text: text,
+                    createdAt: firebase.database.ServerValue.TIMESTAMP
+                });
+                input.value = '';
+            } catch (error) {
+                showStatus('Failed to add meal', 'error');
+            }
         }
 
-        function displayMealPlan(text) {
-            const display = document.getElementById('mealDisplay');
-            if (text) {
-                display.innerHTML = `<div style="white-space: pre-wrap; color: #333;">${escapeHtml(text)}</div>`;
-            } else {
-                display.innerHTML = '<div class="empty-state">No meal plan yet</div>';
+        async function deleteMeal(mealId) {
+            if (!firebaseInitialized) return;
+            await db.ref(`meals/${getTodayKey()}/${mealId}`).remove();
+        }
+
+        function displayMeals(mealsObj) {
+            const mealList = document.getElementById('mealList');
+            const meals = Object.entries(mealsObj).map(([id, meal]) => ({ id, ...meal }));
+            
+            if (meals.length === 0) {
+                mealList.innerHTML = '<div class="empty-state">No meals planned yet. Add your first meal above!</div>';
+                return;
             }
+            
+            mealList.innerHTML = meals.map(meal => `
+                <li class="task-item">
+                    <span class="task-text">${escapeHtml(meal.text)}</span>
+                    <button class="delete-btn" onclick="deleteMeal('${meal.id}')">Delete</button>
+                </li>
+            `).join('');
         }
 
         function initWaterGlasses() {
@@ -703,12 +726,8 @@
             if (e.key === 'Enter') addTask();
         });
 
-        // Allow Enter key to save meal plan too
         document.getElementById('mealInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                saveMealPlan();
-            }
+            if (e.key === 'Enter') addMeal();
         });
 
         initWaterGlasses();
