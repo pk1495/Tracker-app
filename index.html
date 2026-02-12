@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">  
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Tracker</title>
     
@@ -357,7 +357,7 @@
 </head>
 <body>
     <!-- Setup Modal -->
-    <div class="modal active" id="setupModal">
+    <div class="modal" id="setupModal">
         <div class="modal-content">
             <div class="modal-title">🔥 Firebase Setup</div>
             <form id="setupForm">
@@ -400,6 +400,7 @@
                 </div>
 
                 <button type="submit" style="width: 100%; margin-top: 10px;">Connect 🚀</button>
+                <button type="button" onclick="closeSetupModal()" style="width: 100%; margin-top: 10px; background: #6c757d;">Already Connected? Skip</button>
                 
                 <div class="setup-info" style="margin-top: 15px;">
                     <strong>⚠️ Share these credentials:</strong> All users must use the SAME Firebase info to see shared tasks!
@@ -495,10 +496,25 @@
                 return false;
             }
             try {
-                return initFirebase(JSON.parse(config));
+                const parsed = JSON.parse(config);
+                // Verify all required fields are present
+                if (!parsed.apiKey || !parsed.databaseURL || !parsed.projectId) {
+                    document.getElementById('setupModal').classList.add('active');
+                    return false;
+                }
+                return initFirebase(parsed);
             } catch (error) {
                 document.getElementById('setupModal').classList.add('active');
                 return false;
+            }
+        }
+
+        function closeSetupModal() {
+            // Only allow closing if Firebase is already initialized
+            if (firebaseInitialized) {
+                document.getElementById('setupModal').classList.remove('active');
+            } else {
+                showStatus('Please connect to Firebase first', 'error');
             }
         }
 
@@ -515,11 +531,20 @@
                 appId: document.getElementById('firebaseAppId').value.trim()
             };
 
-            localStorage.setItem('firebase_config', JSON.stringify(config));
+            // Save to localStorage with backup
+            const configString = JSON.stringify(config);
+            localStorage.setItem('firebase_config', configString);
+            
+            // Also save to sessionStorage as backup
+            sessionStorage.setItem('firebase_config_backup', configString);
+            
+            // Add a timestamp to track when it was saved
+            localStorage.setItem('firebase_config_saved', new Date().toISOString());
 
             if (initFirebase(config)) {
                 document.getElementById('setupModal').classList.remove('active');
                 updateGreeting();
+                showStatus('Setup saved! You won\'t need to do this again. 🎉', 'success');
             }
         });
 
