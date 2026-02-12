@@ -639,12 +639,14 @@
 
         async function saveMealPlan() {
             if (!firebaseInitialized) return;
-            const text = document.getElementById('mealInput').value.trim();
+            const input = document.getElementById('mealInput');
+            const text = input.value.trim();
             await db.ref(`meals/${getTodayKey()}`).set(text);
+            input.value = ''; // Clear the input after saving
+            showStatus('Meal plan saved! 🍽️', 'success');
         }
 
         function displayMealPlan(text) {
-            document.getElementById('mealInput').value = text;
             const display = document.getElementById('mealDisplay');
             if (text) {
                 display.innerHTML = `<div style="white-space: pre-wrap; color: #333;">${escapeHtml(text)}</div>`;
@@ -701,10 +703,12 @@
             if (e.key === 'Enter') addTask();
         });
 
-        let mealSaveTimeout;
-        document.getElementById('mealInput').addEventListener('input', () => {
-            clearTimeout(mealSaveTimeout);
-            mealSaveTimeout = setTimeout(saveMealPlan, 1000);
+        // Allow Enter key to save meal plan too
+        document.getElementById('mealInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                saveMealPlan();
+            }
         });
 
         initWaterGlasses();
