@@ -353,6 +353,108 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+
+        /* Love Notes Pinboard */
+        .love-note-left {
+            position: fixed;
+            left: 20px;
+            top: 150px;
+            width: 200px;
+            z-index: 100;
+            background: #fffacd;
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 120px;
+            box-shadow: 5px 5px 12px rgba(0, 0, 0, 0.15);
+            transform: rotate(-4deg);
+            border: 1px solid #f0e68c;
+        }
+
+        .love-note-right {
+            position: fixed;
+            right: 20px;
+            top: 150px;
+            width: 200px;
+            z-index: 100;
+            background: #ffb3e6;
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 120px;
+            box-shadow: 5px 5px 12px rgba(0, 0, 0, 0.15);
+            transform: rotate(3deg);
+            border: 1px solid #ff99d6;
+        }
+
+        .love-note-left::before,
+        .love-note-right::before {
+            content: '📌';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.8em;
+            filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.2));
+        }
+
+        .note-input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            font-size: 0.85em;
+            resize: none;
+            min-height: 70px;
+            color: #333;
+            padding: 5px;
+        }
+
+        .note-input:focus {
+            outline: none;
+        }
+
+        .note-input::placeholder {
+            color: #999;
+            font-style: italic;
+            font-size: 0.85em;
+        }
+
+        .note-display {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            font-size: 0.85em;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            min-height: 70px;
+        }
+
+        .note-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            gap: 5px;
+        }
+
+        .note-btn {
+            padding: 4px 8px;
+            font-size: 0.7em;
+            border-radius: 5px;
+        }
+
+        .edit-btn {
+            background: #69b3ff;
+        }
+
+        .save-btn {
+            background: #28a745;
+        }
+
+        /* Hide notes on smaller screens */
+        @media (max-width: 1200px) {
+            .love-note-left,
+            .love-note-right {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -414,6 +516,28 @@
 
         <div class="greeting" id="greeting">
             Good Morning My Loves 🥰 <span class="sync-indicator"></span>
+        </div>
+
+        <!-- Love Note 1 - Left Side -->
+        <div class="love-note-left">
+            <div id="note1Display" class="note-display"></div>
+            <textarea id="note1Input" class="note-input" placeholder="Write a sweet note..." style="display: none;"></textarea>
+            <div class="note-footer">
+                <button class="note-btn edit-btn" id="note1EditBtn" onclick="editNote(1)">Edit</button>
+                <button class="note-btn save-btn" id="note1SaveBtn" onclick="saveNote(1)" style="display: none;">Save</button>
+                <button class="note-btn delete-btn" onclick="deleteNote(1)">Clear</button>
+            </div>
+        </div>
+
+        <!-- Love Note 2 - Right Side -->
+        <div class="love-note-right">
+            <div id="note2Display" class="note-display"></div>
+            <textarea id="note2Input" class="note-input" placeholder="Leave another love note..." style="display: none;"></textarea>
+            <div class="note-footer">
+                <button class="note-btn edit-btn" id="note2EditBtn" onclick="editNote(2)">Edit</button>
+                <button class="note-btn save-btn" id="note2SaveBtn" onclick="saveNote(2)" style="display: none;">Save</button>
+                <button class="note-btn delete-btn" onclick="deleteNote(2)">Clear</button>
+            </div>
         </div>
 
         <!-- Daily Tasks Section -->
@@ -501,6 +625,15 @@
             // Listen to Honey Loves water tracker
             db.ref(`water_loves/${dateKey}`).on('value', (snapshot) => {
                 displayWaterTracker('loves', snapshot.val() || Array(8).fill(false));
+            });
+            
+            // Listen to love notes
+            db.ref(`love_notes/${dateKey}/note1`).on('value', (snapshot) => {
+                displayNote(1, snapshot.val() || '');
+            });
+            
+            db.ref(`love_notes/${dateKey}/note2`).on('value', (snapshot) => {
+                displayNote(2, snapshot.val() || '');
             });
         }
 
@@ -756,6 +889,65 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // Love Notes Functions
+        function editNote(noteNum) {
+            const display = document.getElementById(`note${noteNum}Display`);
+            const input = document.getElementById(`note${noteNum}Input`);
+            const editBtn = document.getElementById(`note${noteNum}EditBtn`);
+            const saveBtn = document.getElementById(`note${noteNum}SaveBtn`);
+            
+            // Switch to edit mode
+            input.value = display.textContent;
+            display.style.display = 'none';
+            input.style.display = 'block';
+            editBtn.style.display = 'none';
+            saveBtn.style.display = 'inline-block';
+            input.focus();
+        }
+
+        async function saveNote(noteNum) {
+            if (!firebaseInitialized) return;
+            
+            const input = document.getElementById(`note${noteNum}Input`);
+            const text = input.value.trim();
+            
+            try {
+                await db.ref(`love_notes/${getTodayKey()}/note${noteNum}`).set(text);
+                
+                // Switch back to display mode
+                const display = document.getElementById(`note${noteNum}Display`);
+                const editBtn = document.getElementById(`note${noteNum}EditBtn`);
+                const saveBtn = document.getElementById(`note${noteNum}SaveBtn`);
+                
+                display.style.display = 'block';
+                input.style.display = 'none';
+                editBtn.style.display = 'inline-block';
+                saveBtn.style.display = 'none';
+            } catch (error) {
+                showStatus('Failed to save note', 'error');
+            }
+        }
+
+        async function deleteNote(noteNum) {
+            if (!firebaseInitialized) return;
+            await db.ref(`love_notes/${getTodayKey()}/note${noteNum}`).set('');
+        }
+
+        function displayNote(noteNum, text) {
+            const display = document.getElementById(`note${noteNum}Display`);
+            const input = document.getElementById(`note${noteNum}Input`);
+            
+            if (text) {
+                display.textContent = text;
+            } else {
+                display.innerHTML = '<span style="color: #999; font-style: italic;">No note yet... Click Edit to write one! 💕</span>';
+            }
+            
+            // Make sure we're in display mode
+            display.style.display = 'block';
+            input.style.display = 'none';
         }
 
         document.getElementById('taskInput').addEventListener('keypress', (e) => {
