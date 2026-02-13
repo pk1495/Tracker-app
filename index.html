@@ -443,8 +443,20 @@
         <!-- Water Tracker Section -->
         <div class="section water-tracker">
             <div class="water-reminder">💧 Make sure to drink water!</div>
-            <div class="water-glasses" id="waterGlasses"></div>
-            <div class="water-count" id="waterCount">0 / 8 glasses</div>
+            
+            <!-- Honey Babies Water Tracker -->
+            <div style="margin-bottom: 30px;">
+                <div style="font-size: 1.1em; color: #c2185b; font-weight: 600; margin-bottom: 10px;">Honey Babies 🥰</div>
+                <div class="water-glasses" id="waterGlassesBabies"></div>
+                <div class="water-count" id="waterCountBabies">0 / 8 glasses</div>
+            </div>
+            
+            <!-- Honey Loves Water Tracker -->
+            <div>
+                <div style="font-size: 1.1em; color: #c2185b; font-weight: 600; margin-bottom: 10px;">Honey Loves 🥰</div>
+                <div class="water-glasses" id="waterGlassesLoves"></div>
+                <div class="water-count" id="waterCountLoves">0 / 8 glasses</div>
+            </div>
         </div>
 
         <button class="settings-btn" onclick="openSettings()">⚙️</button>
@@ -481,8 +493,14 @@
                 displayMeals(snapshot.val() || {});
             });
             
-            db.ref(`water/${dateKey}`).on('value', (snapshot) => {
-                displayWaterTracker(snapshot.val() || Array(8).fill(false));
+            // Listen to Honey Babies water tracker
+            db.ref(`water_babies/${dateKey}`).on('value', (snapshot) => {
+                displayWaterTracker('babies', snapshot.val() || Array(8).fill(false));
+            });
+            
+            // Listen to Honey Loves water tracker
+            db.ref(`water_loves/${dateKey}`).on('value', (snapshot) => {
+                displayWaterTracker('loves', snapshot.val() || Array(8).fill(false));
             });
         }
 
@@ -679,32 +697,50 @@
         }
 
         function initWaterGlasses() {
-            const container = document.getElementById('waterGlasses');
-            container.innerHTML = '';
+            // Initialize Honey Babies water glasses
+            const containerBabies = document.getElementById('waterGlassesBabies');
+            containerBabies.innerHTML = '';
             for (let i = 0; i < 8; i++) {
                 const glass = document.createElement('div');
                 glass.className = 'water-glass';
-                glass.onclick = () => toggleWaterGlass(i);
-                container.appendChild(glass);
+                glass.onclick = () => toggleWaterGlass('babies', i);
+                containerBabies.appendChild(glass);
+            }
+            
+            // Initialize Honey Loves water glasses
+            const containerLoves = document.getElementById('waterGlassesLoves');
+            containerLoves.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                const glass = document.createElement('div');
+                glass.className = 'water-glass';
+                glass.onclick = () => toggleWaterGlass('loves', i);
+                containerLoves.appendChild(glass);
             }
         }
 
-        async function toggleWaterGlass(index) {
+        async function toggleWaterGlass(person, index) {
             if (!firebaseInitialized) return;
-            const snapshot = await db.ref(`water/${getTodayKey()}`).once('value');
+            const dateKey = getTodayKey();
+            const waterKey = `water_${person}`;
+            
+            const snapshot = await db.ref(`${waterKey}/${dateKey}`).once('value');
             let waterData = snapshot.val() || Array(8).fill(false);
             if (!Array.isArray(waterData) || waterData.length !== 8) {
                 waterData = Array(8).fill(false);
             }
             waterData[index] = !waterData[index];
-            await db.ref(`water/${getTodayKey()}`).set(waterData);
+            await db.ref(`${waterKey}/${dateKey}`).set(waterData);
         }
 
-        function displayWaterTracker(waterData) {
+        function displayWaterTracker(person, waterData) {
             if (!Array.isArray(waterData) || waterData.length !== 8) {
                 waterData = Array(8).fill(false);
             }
-            const glasses = document.querySelectorAll('.water-glass');
+            
+            const containerId = person === 'babies' ? 'waterGlassesBabies' : 'waterGlassesLoves';
+            const countId = person === 'babies' ? 'waterCountBabies' : 'waterCountLoves';
+            
+            const glasses = document.querySelectorAll(`#${containerId} .water-glass`);
             glasses.forEach((glass, index) => {
                 if (waterData[index]) {
                     glass.classList.add('filled');
@@ -713,7 +749,7 @@
                 }
             });
             const count = waterData.filter(g => g).length;
-            document.getElementById('waterCount').textContent = `${count} / 8 glasses`;
+            document.getElementById(countId).textContent = `${count} / 8 glasses`;
         }
 
         function escapeHtml(text) {
