@@ -451,9 +451,115 @@
         /* Hide notes on smaller screens */
         @media (max-width: 1200px) {
             .love-note-left,
-            .love-note-right {
+            .love-note-right,
+            .music-widget-left,
+            .music-widget-right {
                 display: none;
             }
+        }
+
+        /* Music Widgets - Below Notes */
+        .music-widget-left {
+            position: fixed;
+            left: 20px;
+            top: 310px;
+            width: 200px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
+            border: 2px solid #FF0000;
+        }
+
+        .music-widget-right {
+            position: fixed;
+            right: 20px;
+            top: 310px;
+            width: 200px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
+            border: 2px solid #1DB954;
+        }
+
+        .music-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-weight: 600;
+            font-size: 0.85em;
+        }
+
+        .music-connect-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 2px;
+            transition: transform 0.2s;
+        }
+
+        .music-connect-btn:hover {
+            transform: scale(1.2);
+        }
+
+        .album-art {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .album-art img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .album-placeholder {
+            font-size: 3em;
+            opacity: 0.3;
+        }
+
+        .music-info {
+            text-align: center;
+        }
+
+        .spotify-song {
+            font-size: 0.85em;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 3px;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .spotify-artist {
+            font-size: 0.75em;
+            color: #666;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .spotify-offline {
+            font-size: 0.75em;
+            color: #999;
+            font-style: italic;
+            padding: 10px 0;
         }
     </style>
 </head>
@@ -529,6 +635,20 @@
             </div>
         </div>
 
+        <!-- YouTube Music Widget - Left Side (Below Note) -->
+        <div class="music-widget-left">
+            <div class="music-header">
+                <span style="color: #FF0000;">🎵 YouTube Music</span>
+                <button class="music-connect-btn" onclick="setupYouTubeMusic()">⚙️</button>
+            </div>
+            <div id="ytMusicAlbum" class="album-art">
+                <div class="album-placeholder">🎵</div>
+            </div>
+            <div id="spotify1" class="music-info">
+                <div class="spotify-offline">Not connected</div>
+            </div>
+        </div>
+
         <!-- Love Note 2 - Right Side -->
         <div class="love-note-right">
             <div id="note2Display" class="note-display"></div>
@@ -537,6 +657,20 @@
                 <button class="note-btn edit-btn" id="note2EditBtn" onclick="editNote(2)">Edit</button>
                 <button class="note-btn save-btn" id="note2SaveBtn" onclick="saveNote(2)" style="display: none;">Save</button>
                 <button class="note-btn delete-btn" onclick="deleteNote(2)">Clear</button>
+            </div>
+        </div>
+
+        <!-- Spotify Widget - Right Side (Below Note) -->
+        <div class="music-widget-right">
+            <div class="music-header">
+                <span style="color: #1DB954;">🎵 Spotify</span>
+                <button class="music-connect-btn" onclick="setupSpotify()">⚙️</button>
+            </div>
+            <div id="spotifyAlbum" class="album-art">
+                <div class="album-placeholder">🎵</div>
+            </div>
+            <div id="spotify2" class="music-info">
+                <div class="spotify-offline">Not connected</div>
             </div>
         </div>
 
@@ -950,6 +1084,351 @@
             input.style.display = 'none';
         }
 
+        // Music Integration
+        let youtubeToken = localStorage.getItem('youtube_music_token');
+        let spotifyToken = localStorage.getItem('spotify_token');
+
+        // === YOUTUBE MUSIC SETUP (Left Side - Person 1) ===
+        function setupYouTubeMusic() {
+            const lastfmApiKey = localStorage.getItem('lastfm_api_key');
+            const lastfmUsername = localStorage.getItem('lastfm_username');
+            
+            if (!lastfmApiKey || !lastfmUsername) {
+                alert(
+                    'YouTube Music Real-Time Setup:\n\n' +
+                    'Since YouTube Music doesn\'t have a public API, we\'ll use Last.fm!\n\n' +
+                    'STEP 1: Create Last.fm Account\n' +
+                    '1. Go to: https://www.last.fm/join\n' +
+                    '2. Create a free account\n' +
+                    '3. Remember your username!\n\n' +
+                    'STEP 2: Get API Key\n' +
+                    '1. Go to: https://www.last.fm/api/account/create\n' +
+                    '2. Application name: "Daily Tracker"\n' +
+                    '3. Description: "Couple\'s tracker"\n' +
+                    '4. Copy your API Key\n\n' +
+                    'STEP 3: Install Web Scrobbler\n' +
+                    '1. Install browser extension: https://web-scrobbler.com\n' +
+                    '2. Connect it to your Last.fm account\n' +
+                    '3. It will auto-track YouTube Music!\n\n' +
+                    'Click OK to enter your details now!'
+                );
+                
+                const username = prompt('Enter your Last.fm username:');
+                if (!username) return;
+                
+                const apiKey = prompt('Enter your Last.fm API Key:');
+                if (!apiKey) return;
+                
+                localStorage.setItem('lastfm_username', username.trim());
+                localStorage.setItem('lastfm_api_key', apiKey.trim());
+                
+                alert('Setup complete! 🎵\n\nMake sure Web Scrobbler extension is installed and connected.\nYour music will now update automatically!');
+                
+                // Fetch immediately
+                fetchYouTubeMusicNowPlaying();
+            } else {
+                // Already set up - show current config
+                const response = confirm(
+                    'YouTube Music is already connected!\n\n' +
+                    'Username: ' + lastfmUsername + '\n\n' +
+                    'Click OK to reconfigure, or Cancel to keep current setup.'
+                );
+                
+                if (response) {
+                    localStorage.removeItem('lastfm_username');
+                    localStorage.removeItem('lastfm_api_key');
+                    setupYouTubeMusic();
+                }
+            }
+        }
+
+        // === SPOTIFY SETUP (Right Side - Person 2) ===
+        function setupSpotify() {
+            // User needs to add their Spotify Client ID here
+            const clientId = localStorage.getItem('spotify_client_id');
+            
+            if (!clientId) {
+                const newClientId = prompt(
+                    'Spotify Setup - Step 1:\n\n' +
+                    '1. Go to: https://developer.spotify.com/dashboard\n' +
+                    '2. Log in with your Spotify account\n' +
+                    '3. Click "Create app"\n' +
+                    '4. App name: "Daily Tracker"\n' +
+                    '5. App description: "Couple\'s daily tracker"\n' +
+                    '6. Redirect URI: ' + window.location.origin + window.location.pathname + '\n' +
+                    '7. Check "Web API"\n' +
+                    '8. Save and copy your Client ID\n\n' +
+                    'Paste your Client ID here:'
+                );
+                
+                if (newClientId) {
+                    localStorage.setItem('spotify_client_id', newClientId.trim());
+                    alert('Client ID saved! Click "Connect Spotify" again to authorize.');
+                }
+                return;
+            }
+            
+            // Start Spotify OAuth flow
+            const redirectUri = window.location.origin + window.location.pathname;
+            const scope = 'user-read-currently-playing user-read-playback-state';
+            const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&show_dialog=true`;
+            
+            window.location.href = authUrl;
+        }
+
+        // Check for Spotify token in URL (after OAuth redirect)
+        function checkSpotifyToken() {
+            const hash = window.location.hash.substring(1);
+            const params = new URLSearchParams(hash);
+            const token = params.get('access_token');
+            
+            if (token) {
+                localStorage.setItem('spotify_token', token);
+                spotifyToken = token;
+                
+                // Clear the hash
+                window.history.replaceState(null, null, window.location.pathname);
+                
+                showStatus('Spotify connected! 🎵', 'success');
+                
+                // Immediately fetch current playing
+                fetchSpotifyNowPlaying();
+            }
+        }
+
+        // === FETCH YOUTUBE MUSIC (Left Side) ===
+        async function fetchYouTubeMusicNowPlaying() {
+            const lastfmApiKey = localStorage.getItem('lastfm_api_key');
+            const lastfmUsername = localStorage.getItem('lastfm_username');
+            
+            if (!lastfmApiKey || !lastfmUsername) {
+                // Not configured - check Firebase for updates from other device
+                if (firebaseInitialized) {
+                    const snapshot = await db.ref('music/youtube').once('value');
+                    const data = snapshot.val();
+                    
+                    if (data && data.song) {
+                        document.getElementById('spotify1').innerHTML = `
+                            <div class="spotify-song">${escapeHtml(data.song)}</div>
+                            <div class="spotify-artist">${escapeHtml(data.artist || '')}</div>
+                        `;
+                        
+                        // Show album art if available
+                        if (data.albumArt) {
+                            document.getElementById('ytMusicAlbum').innerHTML = `<img src="${data.albumArt}" alt="Album">`;
+                        }
+                        return;
+                    }
+                }
+                
+                document.getElementById('spotify1').innerHTML = '<div class="spotify-offline">Not connected</div>';
+                document.getElementById('ytMusicAlbum').innerHTML = '<div class="album-placeholder">🎵</div>';
+                return;
+            }
+            
+            try {
+                // Fetch recent tracks from Last.fm
+                const response = await fetch(
+                    `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${lastfmUsername}&api_key=${lastfmApiKey}&format=json&limit=1`
+                );
+                
+                if (!response.ok) {
+                    throw new Error('Last.fm API error');
+                }
+                
+                const data = await response.json();
+                
+                if (data.recenttracks && data.recenttracks.track && data.recenttracks.track.length > 0) {
+                    const track = data.recenttracks.track[0];
+                    const song = track.name;
+                    const artist = track.artist['#text'] || track.artist;
+                    const isNowPlaying = track['@attr'] && track['@attr'].nowplaying === 'true';
+                    
+                    // Get album art
+                    let albumArt = null;
+                    if (track.image && track.image.length > 0) {
+                        // Last.fm provides multiple sizes, get the largest
+                        const largeImage = track.image.find(img => img.size === 'extralarge') || 
+                                         track.image.find(img => img.size === 'large') ||
+                                         track.image[track.image.length - 1];
+                        if (largeImage && largeImage['#text']) {
+                            albumArt = largeImage['#text'];
+                        }
+                    }
+                    
+                    document.getElementById('spotify1').innerHTML = `
+                        <div class="spotify-song">${escapeHtml(song)}</div>
+                        <div class="spotify-artist">${escapeHtml(artist)}</div>
+                    `;
+                    
+                    // Update album art
+                    if (albumArt) {
+                        document.getElementById('ytMusicAlbum').innerHTML = `<img src="${albumArt}" alt="Album">`;
+                    } else {
+                        document.getElementById('ytMusicAlbum').innerHTML = '<div class="album-placeholder">🎵</div>';
+                    }
+                    
+                    // Save to Firebase so other user can see
+                    if (firebaseInitialized) {
+                        db.ref('music/youtube').set({
+                            song: song,
+                            artist: artist,
+                            albumArt: albumArt,
+                            nowPlaying: isNowPlaying,
+                            timestamp: Date.now()
+                        });
+                    }
+                } else {
+                    document.getElementById('spotify1').innerHTML = '<div class="spotify-offline">Nothing playing</div>';
+                    document.getElementById('ytMusicAlbum').innerHTML = '<div class="album-placeholder">🎵</div>';
+                }
+            } catch (error) {
+                console.error('Last.fm error:', error);
+                document.getElementById('spotify1').innerHTML = '<div class="spotify-offline">Connection error</div>';
+                document.getElementById('ytMusicAlbum').innerHTML = '<div class="album-placeholder">🎵</div>';
+            }
+        }
+
+        // === FETCH SPOTIFY (Right Side) ===
+        async function fetchSpotifyNowPlaying() {
+            if (!spotifyToken) {
+                // Check Firebase for updates from the other user
+                if (firebaseInitialized) {
+                    const snapshot = await db.ref('music/spotify').once('value');
+                    const data = snapshot.val();
+                    
+                    if (data && data.song) {
+                        document.getElementById('spotify2').innerHTML = `
+                            <div class="spotify-song">${escapeHtml(data.song)}</div>
+                            <div class="spotify-artist">${escapeHtml(data.artist || '')}</div>
+                        `;
+                        
+                        // Show album art if available
+                        if (data.albumArt) {
+                            document.getElementById('spotifyAlbum').innerHTML = `<img src="${data.albumArt}" alt="Album">`;
+                        }
+                        return;
+                    }
+                }
+                
+                document.getElementById('spotify2').innerHTML = '<div class="spotify-offline">Not connected</div>';
+                document.getElementById('spotifyAlbum').innerHTML = '<div class="album-placeholder">🎵</div>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+                    headers: {
+                        'Authorization': `Bearer ${spotifyToken}`
+                    }
+                });
+                
+                if (response.status === 401) {
+                    // Token expired
+                    localStorage.removeItem('spotify_token');
+                    spotifyToken = null;
+                    document.getElementById('spotify2').innerHTML = '<div class="spotify-offline">Token expired - reconnect</div>';
+                    document.getElementById('spotifyAlbum').innerHTML = '<div class="album-placeholder">🎵</div>';
+                    return;
+                }
+                
+                if (response.status === 204) {
+                    document.getElementById('spotify2').innerHTML = '<div class="spotify-offline">Nothing playing</div>';
+                    document.getElementById('spotifyAlbum').innerHTML = '<div class="album-placeholder">🎵</div>';
+                    
+                    // Clear from Firebase
+                    if (firebaseInitialized) {
+                        db.ref('music/spotify').remove();
+                    }
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data && data.item) {
+                    const song = data.item.name;
+                    const artist = data.item.artists.map(a => a.name).join(', ');
+                    
+                    // Get album art
+                    let albumArt = null;
+                    if (data.item.album && data.item.album.images && data.item.album.images.length > 0) {
+                        // Spotify provides multiple sizes, get medium or large
+                        albumArt = data.item.album.images[0].url;
+                    }
+                    
+                    document.getElementById('spotify2').innerHTML = `
+                        <div class="spotify-song">${escapeHtml(song)}</div>
+                        <div class="spotify-artist">${escapeHtml(artist)}</div>
+                    `;
+                    
+                    // Update album art
+                    if (albumArt) {
+                        document.getElementById('spotifyAlbum').innerHTML = `<img src="${albumArt}" alt="Album">`;
+                    } else {
+                        document.getElementById('spotifyAlbum').innerHTML = '<div class="album-placeholder">🎵</div>';
+                    }
+                    
+                    // Save to Firebase so other user can see
+                    if (firebaseInitialized) {
+                        db.ref('music/spotify').set({
+                            song: song,
+                            artist: artist,
+                            albumArt: albumArt,
+                            timestamp: Date.now()
+                        });
+                    }
+                } else {
+                    document.getElementById('spotify2').innerHTML = '<div class="spotify-offline">Nothing playing</div>';
+                    document.getElementById('spotifyAlbum').innerHTML = '<div class="album-placeholder">🎵</div>';
+                }
+            } catch (error) {
+                console.error('Spotify error:', error);
+                document.getElementById('spotify2').innerHTML = '<div class="spotify-offline">Connection error</div>';
+                document.getElementById('spotifyAlbum').innerHTML = '<div class="album-placeholder">🎵</div>';
+            }
+        }
+
+        // Listen to Firebase for music updates
+        function setupMusicListeners() {
+            if (!firebaseInitialized) return;
+            
+            // Listen to YouTube Music updates
+            db.ref('music/youtube').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.song) {
+                    document.getElementById('spotify1').innerHTML = `
+                        <div class="spotify-song">${escapeHtml(data.song)}</div>
+                        <div class="spotify-artist">${escapeHtml(data.artist || '')}</div>
+                    `;
+                    
+                    // Update album art
+                    if (data.albumArt) {
+                        document.getElementById('ytMusicAlbum').innerHTML = `<img src="${data.albumArt}" alt="Album">`;
+                    } else {
+                        document.getElementById('ytMusicAlbum').innerHTML = '<div class="album-placeholder">🎵</div>';
+                    }
+                }
+            });
+            
+            // Listen to Spotify updates
+            db.ref('music/spotify').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.song) {
+                    document.getElementById('spotify2').innerHTML = `
+                        <div class="spotify-song">${escapeHtml(data.song)}</div>
+                        <div class="spotify-artist">${escapeHtml(data.artist || '')}</div>
+                    `;
+                    
+                    // Update album art
+                    if (data.albumArt) {
+                        document.getElementById('spotifyAlbum').innerHTML = `<img src="${data.albumArt}" alt="Album">`;
+                    } else {
+                        document.getElementById('spotifyAlbum').innerHTML = '<div class="album-placeholder">🎵</div>';
+                    }
+                }
+            });
+        }
+
         document.getElementById('taskInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') addTask();
         });
@@ -961,6 +1440,19 @@
         initWaterGlasses();
         updateGreeting();
         checkSetup();
+        checkSpotifyToken();
+        setupMusicListeners();
+        
+        // Fetch initial music state
+        fetchYouTubeMusicNowPlaying();
+        fetchSpotifyNowPlaying();
+        
+        // Update music every 30 seconds
+        setInterval(() => {
+            fetchYouTubeMusicNowPlaying();
+            fetchSpotifyNowPlaying();
+        }, 30000);
+        
         setInterval(updateGreeting, 60000);
     </script>
 </body>
