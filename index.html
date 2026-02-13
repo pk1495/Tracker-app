@@ -561,6 +561,24 @@
             font-style: italic;
             padding: 10px 0;
         }
+
+        .reconnect-btn {
+            width: 100%;
+            margin-top: 8px;
+            padding: 8px;
+            font-size: 0.75em;
+            background: #1DB954;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .reconnect-btn:hover {
+            background: #1ed760;
+            transform: none;
+        }
     </style>
 </head>
 <body>
@@ -672,6 +690,9 @@
             <div id="spotify2" class="music-info">
                 <div class="spotify-offline">Not connected</div>
             </div>
+            <button class="reconnect-btn" id="spotifyReconnectBtn" onclick="reconnectSpotify()" style="display: none;">
+                🔄 Authorize Spotify
+            </button>
         </div>
 
         <!-- Daily Tasks Section -->
@@ -1144,7 +1165,6 @@
 
         // === SPOTIFY SETUP (Right Side - Person 2) ===
         function setupSpotify() {
-            // User needs to add their Spotify Client ID here
             const clientId = localStorage.getItem('spotify_client_id');
             
             if (!clientId) {
@@ -1155,7 +1175,8 @@
                     '3. Click "Create app"\n' +
                     '4. App name: "Daily Tracker"\n' +
                     '5. App description: "Couple\'s daily tracker"\n' +
-                    '6. Redirect URI: ' + window.location.origin + window.location.pathname + '\n' +
+                    '6. Redirect URI: ' + window.location.href.split('#')[0] + '\n' +
+                    '   (Must match EXACTLY - copy this!)\n' +
                     '7. Check "Web API"\n' +
                     '8. Save and copy your Client ID\n\n' +
                     'Paste your Client ID here:'
@@ -1163,15 +1184,45 @@
                 
                 if (newClientId) {
                     localStorage.setItem('spotify_client_id', newClientId.trim());
-                    alert('Client ID saved! Click "Connect Spotify" again to authorize.');
+                    alert('Client ID saved!\n\nNow click the "🔄 Authorize Spotify" button that appeared to connect your account.');
+                    
+                    // Show the reconnect button
+                    document.getElementById('spotifyReconnectBtn').style.display = 'block';
                 }
                 return;
             }
             
+            // Client ID exists - show options
+            const response = confirm(
+                'Spotify Client ID is already set.\n\n' +
+                'Click OK to enter a new Client ID\n' +
+                'Click Cancel to authorize with current ID'
+            );
+            
+            if (response) {
+                localStorage.removeItem('spotify_client_id');
+                localStorage.removeItem('spotify_token');
+                setupSpotify();
+            } else {
+                reconnectSpotify();
+            }
+        }
+
+        function reconnectSpotify() {
+            const clientId = localStorage.getItem('spotify_client_id');
+            
+            if (!clientId) {
+                alert('No Client ID found. Please click the ⚙️ gear icon first to set up Spotify.');
+                return;
+            }
+            
             // Start Spotify OAuth flow
-            const redirectUri = window.location.origin + window.location.pathname;
+            const redirectUri = window.location.href.split('#')[0];
             const scope = 'user-read-currently-playing user-read-playback-state';
-            const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&show_dialog=true`;
+            const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&show_dialog=false`;
+            
+            console.log('Redirecting to Spotify authorization...');
+            console.log('Redirect URI:', redirectUri);
             
             window.location.href = authUrl;
         }
@@ -1442,6 +1493,13 @@
         checkSetup();
         checkSpotifyToken();
         setupMusicListeners();
+        
+        // Check if Spotify needs authorization
+        const spotifyClientId = localStorage.getItem('spotify_client_id');
+        if (spotifyClientId && !spotifyToken) {
+            document.getElementById('spotifyReconnectBtn').style.display = 'block';
+            document.getElementById('spotify2').innerHTML = '<div class="spotify-offline">Click button below to authorize</div>';
+        }
         
         // Fetch initial music state
         fetchYouTubeMusicNowPlaying();
