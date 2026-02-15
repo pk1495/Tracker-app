@@ -6,7 +6,10 @@
   "display": "standalone",
   "background_color": "#ffeef8",
   "theme_color": "#d63384",
-  "orientation": "portrait",
+  "orientation": "any",
+  "scope": "/Tracker-app/",
+  "categories": ["productivity", "lifestyle"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "icon-192.png",
@@ -24,6 +27,15 @@
       "src": "apple-touch-icon.png",
       "sizes": "180x180",
       "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add Task",
+      "short_name": "Task",
+      "description": "Quickly add a new task",
+      "url": "/Tracker-app/",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
