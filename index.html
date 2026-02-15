@@ -1164,6 +1164,28 @@
         }
 
         // === SPOTIFY SETUP (Right Side - Person 2) ===
+        
+        // Generate code verifier and challenge for PKCE
+        function generateCodeVerifier() {
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            return base64URLEncode(array);
+        }
+
+        function base64URLEncode(buffer) {
+            return btoa(String.fromCharCode.apply(null, buffer))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+        }
+
+        async function generateCodeChallenge(verifier) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(verifier);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return base64URLEncode(new Uint8Array(hash));
+        }
+
         function setupSpotify() {
             const clientId = localStorage.getItem('spotify_client_id');
             
@@ -1175,8 +1197,8 @@
                     '3. Click "Create app"\n' +
                     '4. App name: "Daily Tracker"\n' +
                     '5. App description: "Couple\'s daily tracker"\n' +
-                    '6. Redirect URI: ' + window.location.href.split('#')[0] + '\n' +
-                    '   (Must match EXACTLY - copy this!)\n' +
+                    '6. Redirect URI: https://pk1495.github.io/Tracker-app/callback\n' +
+                    '   (Copy this EXACTLY!)\n' +
                     '7. Check "Web API"\n' +
                     '8. Save and copy your Client ID\n\n' +
                     'Paste your Client ID here:'
@@ -1184,15 +1206,12 @@
                 
                 if (newClientId) {
                     localStorage.setItem('spotify_client_id', newClientId.trim());
-                    alert('Client ID saved!\n\nNow click the "🔄 Authorize Spotify" button that appeared to connect your account.');
-                    
-                    // Show the reconnect button
+                    alert('Client ID saved!\n\nNow click the "🔄 Authorize Spotify" button to connect your account.');
                     document.getElementById('spotifyReconnectBtn').style.display = 'block';
                 }
                 return;
             }
             
-            // Client ID exists - show options
             const response = confirm(
                 'Spotify Client ID is already set.\n\n' +
                 'Click OK to enter a new Client ID\n' +
@@ -1208,7 +1227,7 @@
             }
         }
 
-        function reconnectSpotify() {
+        async function reconnectSpotify() {
             const clientId = localStorage.getItem('spotify_client_id');
             
             if (!clientId) {
@@ -1216,14 +1235,30 @@
                 return;
             }
             
-            // Start Spotify OAuth flow
-            const redirectUri = window.location.href.split('#')[0];
+            // Generate PKCE values
+            const codeVerifier = generateCodeVerifier();
+            const codeChallenge = await generateCodeChallenge(codeVerifier);
+            
+            // Store verifier for later
+            sessionStorage.setItem('spotify_code_verifier', codeVerifier);
+            
+            // Build authorization URL with PKCE
+            const redirectUri = 'https://pk1495.github.io/Tracker-app/callback';
             const scope = 'user-read-currently-playing user-read-playback-state';
-            const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&show_dialog=false`;
+            const state = Math.random().toString(36).substring(7);
             
-            console.log('Redirecting to Spotify authorization...');
-            console.log('Redirect URI:', redirectUri);
+            sessionStorage.setItem('spotify_auth_state', state);
             
+            const authUrl = `https://accounts.spotify.com/authorize?` +
+                `client_id=${clientId}` +
+                `&response_type=code` +
+                `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+                `&scope=${encodeURIComponent(scope)}` +
+                `&state=${state}` +
+                `&code_challenge_method=S256` +
+                `&code_challenge=${codeChallenge}`;
+            
+            console.log('Redirecting to Spotify with PKCE...');
             window.location.href = authUrl;
         }
 
