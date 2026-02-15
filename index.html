@@ -414,7 +414,7 @@
             width: 100%;
             border: none;
             background: transparent;
-            font-family: 'Comic Sans MS', cursive, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             font-size: 0.85em;
             resize: none;
             min-height: 70px;
@@ -433,7 +433,7 @@
         }
 
         .note-display {
-            font-family: 'Comic Sans MS', cursive, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             font-size: 0.85em;
             color: #333;
             white-space: pre-wrap;
@@ -1171,6 +1171,9 @@
             const taskList = document.getElementById('taskList');
             const tasks = Object.entries(tasksObj).map(([id, task]) => ({ id, ...task }));
             
+            // Check for new tasks and send notification
+            checkForNewTasks(tasksObj);
+            
             if (tasks.length === 0) {
                 taskList.innerHTML = '<div class="empty-state">No tasks yet. Add your first task above!</div>';
                 return;
@@ -1211,6 +1214,9 @@
         function displayMeals(mealsObj) {
             const mealList = document.getElementById('mealList');
             const meals = Object.entries(mealsObj).map(([id, meal]) => ({ id, ...meal }));
+            
+            // Check for new meals and send notification
+            checkForNewMeals(mealsObj);
             
             if (meals.length === 0) {
                 mealList.innerHTML = '<div class="empty-state">No meals planned yet. Add your first meal above!</div>';
@@ -1764,11 +1770,90 @@
             if (e.key === 'Enter') addMeal();
         });
 
+        // Notification System
+        let lastTaskCount = 0;
+        let lastMealCount = 0;
+
+        async function requestNotificationPermission() {
+            if ('Notification' in window && 'serviceWorker' in navigator) {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    console.log('Notification permission granted');
+                }
+            }
+        }
+
+        function sendLocalNotification(title, body) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    // Use service worker notification
+                    navigator.serviceWorker.ready.then((registration) => {
+                        registration.showNotification(title, {
+                            body: body,
+                            icon: 'icon-192.png',
+                            badge: 'icon-192.png',
+                            vibrate: [200, 100, 200],
+                            tag: 'daily-tracker-update'
+                        });
+                    });
+                } else {
+                    // Fallback to regular notification
+                    new Notification(title, {
+                        body: body,
+                        icon: 'icon-192.png'
+                    });
+                }
+            }
+        }
+
+        function checkForNewTasks(tasksObj) {
+            const taskCount = Object.keys(tasksObj).length;
+            
+            if (lastTaskCount > 0 && taskCount > lastTaskCount) {
+                // New task added!
+                const tasks = Object.entries(tasksObj).map(([id, task]) => ({ id, ...task }));
+                const newestTask = tasks[tasks.length - 1];
+                sendLocalNotification('📝 New Task Added!', newestTask.text);
+            }
+            
+            lastTaskCount = taskCount;
+        }
+
+        function checkForNewMeals(mealsObj) {
+            const mealCount = Object.keys(mealsObj).length;
+            
+            if (lastMealCount > 0 && mealCount > lastMealCount) {
+                // New meal added!
+                const meals = Object.entries(mealsObj).map(([id, meal]) => ({ id, ...meal }));
+                const newestMeal = meals[meals.length - 1];
+                sendLocalNotification('🍽️ New Meal Added!', newestMeal.text);
+            }
+            
+            lastMealCount = mealCount;
+        }
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            // Only register if we're on the actual site, not preview
+            if (window.location.hostname !== 'www.claudeusercontent.com') {
+                navigator.serviceWorker.register('sw.js')
+                    .then((registration) => {
+                        console.log('Service Worker registered:', registration);
+                    })
+                    .catch((error) => {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            }
+        }
+
         initWaterGlasses();
         updateGreeting();
         checkSetup();
         checkSpotifyToken();
         setupMusicListeners();
+        
+        // Request notification permission on load
+        setTimeout(requestNotificationPermission, 2000);
         
         // Check if Spotify needs authorization
         const spotifyClientId = localStorage.getItem('spotify_client_id');
