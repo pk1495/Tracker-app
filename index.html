@@ -450,37 +450,64 @@
 
         /* Mobile responsive layout */
         @media (max-width: 1200px) {
-            .love-note-left,
-            .love-note-right,
-            .music-widget-left,
-            .music-widget-right {
+            .container {
+                display: flex;
+                flex-direction: column;
+                padding: 20px 15px;
+            }
+
+            /* Love notes at top */
+            .love-note-left {
                 position: relative;
                 left: auto;
+                top: auto;
+                width: 100%;
+                max-width: 350px;
+                margin: 0 auto 15px auto;
+                order: 1;
+                transform: rotate(-2deg);
+            }
+
+            .love-note-right {
+                position: relative;
                 right: auto;
                 top: auto;
                 width: 100%;
                 max-width: 350px;
                 margin: 0 auto 20px auto;
-            }
-
-            .love-note-left {
-                transform: rotate(-2deg);
-            }
-
-            .love-note-right {
+                order: 2;
                 transform: rotate(2deg);
             }
 
-            .container {
-                padding: 20px 15px;
-            }
-
+            /* Main content in middle */
             .greeting {
+                order: 0;
                 font-size: 1.5em;
             }
 
-            .section-title {
-                font-size: 1.3em;
+            .section {
+                order: 3;
+            }
+
+            /* Music widgets at bottom */
+            .music-widget-left {
+                position: relative;
+                left: auto;
+                top: auto;
+                width: 100%;
+                max-width: 350px;
+                margin: 15px auto;
+                order: 10;
+            }
+
+            .music-widget-right {
+                position: relative;
+                right: auto;
+                top: auto;
+                width: 100%;
+                max-width: 350px;
+                margin: 15px auto;
+                order: 11;
             }
 
             .settings-btn {
@@ -489,6 +516,7 @@
                 width: 45px;
                 height: 45px;
                 font-size: 1.3em;
+                order: 12;
             }
         }
 
