@@ -448,13 +448,116 @@
             background: #28a745;
         }
 
-        /* Hide notes on smaller screens */
+        /* Mobile responsive layout */
         @media (max-width: 1200px) {
             .love-note-left,
             .love-note-right,
             .music-widget-left,
             .music-widget-right {
-                display: none;
+                position: relative;
+                left: auto;
+                right: auto;
+                top: auto;
+                width: 100%;
+                max-width: 350px;
+                margin: 0 auto 20px auto;
+            }
+
+            .love-note-left {
+                transform: rotate(-2deg);
+            }
+
+            .love-note-right {
+                transform: rotate(2deg);
+            }
+
+            .container {
+                padding: 20px 15px;
+            }
+
+            .greeting {
+                font-size: 1.5em;
+            }
+
+            .section-title {
+                font-size: 1.3em;
+            }
+
+            .settings-btn {
+                bottom: 10px;
+                right: 10px;
+                width: 45px;
+                height: 45px;
+                font-size: 1.3em;
+            }
+        }
+
+        /* Small phone screens */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 15px;
+                border-radius: 15px;
+            }
+
+            .greeting {
+                font-size: 1.3em;
+                margin-bottom: 20px;
+            }
+
+            .section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+
+            .section-title {
+                font-size: 1.2em;
+            }
+
+            .task-input-container {
+                flex-direction: column;
+            }
+
+            input[type="text"], textarea {
+                width: 100%;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            .task-item {
+                flex-wrap: wrap;
+                font-size: 0.95em;
+            }
+
+            .delete-btn {
+                margin-top: 5px;
+                width: 100%;
+            }
+
+            .water-glasses {
+                gap: 8px;
+            }
+
+            .water-glass {
+                width: 40px;
+                height: 50px;
+            }
+
+            .love-note-left,
+            .love-note-right {
+                width: 90%;
+                max-width: 300px;
+            }
+
+            .music-widget-left,
+            .music-widget-right {
+                width: 90%;
+                max-width: 300px;
             }
         }
 
