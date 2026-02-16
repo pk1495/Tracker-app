@@ -202,6 +202,82 @@
             color: #666;
         }
 
+        /* Profile Picture Styles */
+        .profile-picture-section {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .profile-pic-preview {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin: 0 auto;
+            border: 3px solid #d63384;
+            overflow: hidden;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .profile-pic-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-placeholder {
+            font-size: 3em;
+            color: #ccc;
+        }
+
+        .profile-pic-small {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 2px solid white;
+        }
+
+        .profile-pic-small img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-placeholder-small {
+            font-size: 1.2em;
+            color: white;
+        }
+
+        .message-profile-pic {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            overflow: hidden;
+            margin-right: 8px;
+            border: 1px solid #ddd;
+            flex-shrink: 0;
+        }
+
+        .message-profile-pic img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .message-with-pic {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
         .section {
             margin-bottom: 35px;
             background: #fff5f9;
@@ -1447,7 +1523,9 @@
                 <div class="chat-title">Messages 💕</div>
                 <div class="online-status">Both online</div>
             </div>
-            <button class="info-btn" onclick="showUsernames()">👤</button>
+            <div class="profile-pic-small" id="headerProfilePic" onclick="showUsernames()">
+                <div class="profile-placeholder-small">👤</div>
+            </div>
         </div>
         
         <div class="messages-container" id="messagesContainer">
@@ -1468,12 +1546,23 @@
     <!-- Username Setup Modal -->
     <div class="username-modal" id="usernameModal">
         <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-title">Set Your Name 💕</div>
-            <div class="form-group">
+            <div class="modal-title">Your Profile 💕</div>
+            
+            <div class="profile-picture-section">
+                <div class="profile-pic-preview" id="profilePicPreview">
+                    <div class="profile-placeholder">📷</div>
+                </div>
+                <input type="file" id="profilePicInput" accept="image/*" style="display: none;" onchange="handleProfilePicChange(event)">
+                <button onclick="document.getElementById('profilePicInput').click()" style="width: 100%; margin-top: 10px; background: #ff69b4;">
+                    Choose Profile Picture
+                </button>
+            </div>
+            
+            <div class="form-group" style="margin-top: 20px;">
                 <label>Your Name:</label>
                 <input type="text" id="usernameInput" placeholder="Enter your name" maxlength="20">
             </div>
-            <button onclick="saveUsername()" style="width: 100%; margin-top: 10px;">Save</button>
+            <button onclick="saveUsername()" style="width: 100%; margin-top: 10px;">Save Profile</button>
         </div>
     </div>
 
@@ -1792,8 +1881,49 @@
         let currentUserId = localStorage.getItem('user_id') || 'user_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('user_id', currentUserId);
         let currentUsername = localStorage.getItem('username') || '';
+        let currentProfilePic = localStorage.getItem('profile_pic') || '';
         let lastMessageCount = 0;
         let lastReadTimestamp = parseInt(localStorage.getItem('last_read_timestamp') || '0');
+
+        function handleProfilePicChange(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image too large! Please choose an image under 5MB.');
+                return;
+            }
+            
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageData = e.target.result;
+                
+                // Show preview
+                document.getElementById('profilePicPreview').innerHTML = `<img src="${imageData}" alt="Profile">`;
+                
+                // Save temporarily (will save to Firebase when user clicks Save)
+                currentProfilePic = imageData;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function loadProfilePicPreview() {
+            if (currentProfilePic) {
+                document.getElementById('profilePicPreview').innerHTML = `<img src="${currentProfilePic}" alt="Profile">`;
+            }
+            
+            // Load header profile pic
+            if (currentProfilePic) {
+                document.getElementById('headerProfilePic').innerHTML = `<img src="${currentProfilePic}" alt="Profile">`;
+            }
+        }
 
         function openMessages() {
             document.getElementById('messagingModal').classList.add('active');
@@ -1825,14 +1955,21 @@
                 currentUsername = name;
                 localStorage.setItem('username', name);
                 
+                // Save profile pic if set
+                if (currentProfilePic) {
+                    localStorage.setItem('profile_pic', currentProfilePic);
+                }
+                
                 // Save to Firebase
                 if (firebaseInitialized) {
                     db.ref(`users/${currentUserId}`).set({
                         name: name,
+                        profilePic: currentProfilePic || null,
                         lastSeen: firebase.database.ServerValue.TIMESTAMP
                     });
                 }
                 
+                loadProfilePicPreview();
                 document.getElementById('usernameModal').classList.remove('active');
                 input.value = '';
             }
@@ -1878,6 +2015,7 @@
                     text: text,
                     userId: currentUserId,
                     username: currentUsername,
+                    profilePic: currentProfilePic || null,
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
                     reactions: {},
                     status: 'delivered',
@@ -1978,6 +2116,11 @@
                 
                 return `
                     <div class="message-bubble ${isMine ? 'my-message' : 'their-message'}">
+                        ${!isMine && msg.profilePic ? `
+                            <div class="message-profile-pic">
+                                <img src="${msg.profilePic}" alt="${escapeHtml(senderName)}">
+                            </div>
+                        ` : ''}
                         <div class="message-content">
                             ${!isMine ? `<div class="sender-name">${escapeHtml(senderName)}</div>` : ''}
                             <div class="message-text" onclick="toggleReactionPicker('${msg.id}')" oncontextmenu="toggleReactionPicker('${msg.id}'); return false;">
@@ -2082,6 +2225,9 @@
                     }
                 });
             }
+            
+            // Load profile picture preview
+            loadProfilePicPreview();
             
             // Update unread count periodically
             setInterval(updateUnreadCount, 5000);
