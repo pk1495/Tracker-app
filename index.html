@@ -53,6 +53,153 @@
             margin-bottom: 30px;
             font-weight: 600;
             text-shadow: 2px 2px 4px rgba(255, 192, 203, 0.5);
+            position: relative;
+        }
+
+        .mail-icon {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: white;
+            border: 2px solid #d63384;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.5em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+            padding: 0;
+        }
+
+        .mail-icon:hover {
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .unread-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff4d6d;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 0.5em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .unread-badge:empty,
+        .unread-badge[data-count="0"] {
+            display: none;
+        }
+
+        /* Messaging Modal/Page */
+        .messaging-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            z-index: 2000;
+            flex-direction: column;
+        }
+
+        .messaging-modal.active {
+            display: flex;
+        }
+
+        .messaging-header {
+            background: linear-gradient(135deg, #ff69b4 0%, #d63384 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .back-btn,
+        .info-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .back-btn:hover,
+        .info-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .chat-info {
+            flex: 1;
+        }
+
+        .chat-title {
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
+        .online-status {
+            font-size: 0.75em;
+            opacity: 0.9;
+        }
+
+        .message-input-area {
+            padding: 10px;
+            background: white;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .username-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .username-modal.active {
+            display: flex;
+        }
+
+        .sender-name {
+            font-size: 0.75em;
+            font-weight: 600;
+            margin-bottom: 4px;
+            opacity: 0.8;
+        }
+
+        .my-message .sender-name {
+            text-align: right;
+            color: #d63384;
+        }
+
+        .their-message .sender-name {
+            text-align: left;
+            color: #666;
         }
 
         .section {
@@ -820,6 +967,204 @@
             background: #1ed760;
             transform: none;
         }
+
+        /* Messaging Section */
+        .messaging-section {
+            background: #fff5f9;
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid #ffc0cb;
+            margin-bottom: 35px;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: #fafafa;
+        }
+
+        .message-bubble {
+            display: flex;
+            margin-bottom: 15px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-bubble.my-message {
+            justify-content: flex-end;
+        }
+
+        .message-bubble.their-message {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 70%;
+            position: relative;
+        }
+
+        .message-text {
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .my-message .message-text {
+            background: linear-gradient(135deg, #ff69b4 0%, #d63384 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .their-message .message-text {
+            background: #f0f0f0;
+            color: #333;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-time {
+            font-size: 0.7em;
+            color: #999;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        .their-message .message-time {
+            text-align: left;
+        }
+
+        .message-reactions {
+            display: flex;
+            gap: 4px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .reaction-bubble {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 0.9em;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .reaction-count {
+            font-size: 0.75em;
+            color: #666;
+        }
+
+        .reaction-picker {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: white;
+            border-radius: 20px;
+            padding: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+
+        .reaction-picker.active {
+            display: flex;
+        }
+
+        .reaction-option {
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .reaction-option:hover {
+            transform: scale(1.3);
+            background: #f5f5f5;
+        }
+
+        .message-input-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #ffb3d9;
+            border-radius: 20px;
+            font-size: 0.95em;
+            resize: none;
+            max-height: 100px;
+            font-family: inherit;
+        }
+
+        .message-input:focus {
+            outline: none;
+            border-color: #d63384;
+        }
+
+        .send-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff69b4 0%, #d63384 100%);
+            color: white;
+            border: none;
+            font-size: 1.2em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+            padding: 0;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            color: #999;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+
+        .typing-indicator.active {
+            display: block;
+        }
+
+        .empty-messages {
+            text-align: center;
+            color: #999;
+            padding: 40px 20px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -881,6 +1226,10 @@
 
         <div class="greeting" id="greeting">
             Good Morning My Loves 🥰 <span class="sync-indicator"></span>
+            <button class="mail-icon" onclick="openMessages()" id="mailIcon">
+                📬
+                <span class="unread-badge" id="unreadBadge">0</span>
+            </button>
         </div>
 
         <!-- Love Note 1 - Left Side -->
@@ -980,6 +1329,44 @@
         </div>
 
         <button class="settings-btn" onclick="openSettings()">⚙️</button>
+    </div>
+
+    <!-- Messaging Modal/Page -->
+    <div class="messaging-modal" id="messagingModal">
+        <div class="messaging-header">
+            <button class="back-btn" onclick="closeMessages()">←</button>
+            <div class="chat-info">
+                <div class="chat-title">Messages 💕</div>
+                <div class="online-status">Both online</div>
+            </div>
+            <button class="info-btn" onclick="showUsernames()">👤</button>
+        </div>
+        
+        <div class="messages-container" id="messagesContainer">
+            <div class="empty-messages">No messages yet. Send the first one! 💕</div>
+        </div>
+        
+        <div class="message-input-area">
+            <div class="typing-indicator" id="typingIndicator">typing...</div>
+            <div class="message-input-container">
+                <textarea id="messageInput" class="message-input" placeholder="Send a message..." rows="1"></textarea>
+                <button class="send-btn" onclick="sendMessage()">
+                    <span>➤</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Username Setup Modal -->
+    <div class="username-modal" id="usernameModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-title">Set Your Name 💕</div>
+            <div class="form-group">
+                <label>Your Name:</label>
+                <input type="text" id="usernameInput" placeholder="Enter your name" maxlength="20">
+            </div>
+            <button onclick="saveUsername()" style="width: 100%; margin-top: 10px;">Save</button>
+        </div>
     </div>
 
     <script>
@@ -1292,6 +1679,244 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // === MESSAGING SYSTEM ===
+        let currentUserId = localStorage.getItem('user_id') || 'user_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('user_id', currentUserId);
+        let currentUsername = localStorage.getItem('username') || '';
+        let lastMessageCount = 0;
+        let lastReadTimestamp = parseInt(localStorage.getItem('last_read_timestamp') || '0');
+
+        function openMessages() {
+            document.getElementById('messagingModal').classList.add('active');
+            // Mark as read
+            lastReadTimestamp = Date.now();
+            localStorage.setItem('last_read_timestamp', lastReadTimestamp.toString());
+            updateUnreadCount();
+            
+            // Check if user has set their name
+            if (!currentUsername) {
+                setTimeout(() => {
+                    document.getElementById('usernameModal').classList.add('active');
+                }, 500);
+            }
+        }
+
+        function closeMessages() {
+            document.getElementById('messagingModal').classList.remove('active');
+        }
+
+        function showUsernames() {
+            document.getElementById('usernameModal').classList.add('active');
+        }
+
+        function saveUsername() {
+            const input = document.getElementById('usernameInput');
+            const name = input.value.trim();
+            if (name) {
+                currentUsername = name;
+                localStorage.setItem('username', name);
+                
+                // Save to Firebase
+                if (firebaseInitialized) {
+                    db.ref(`users/${currentUserId}`).set({
+                        name: name,
+                        lastSeen: firebase.database.ServerValue.TIMESTAMP
+                    });
+                }
+                
+                document.getElementById('usernameModal').classList.remove('active');
+                input.value = '';
+            }
+        }
+
+        function updateUnreadCount() {
+            if (!firebaseInitialized) return;
+            
+            db.ref('messages').once('value', (snapshot) => {
+                const messages = snapshot.val() || {};
+                let unreadCount = 0;
+                
+                Object.values(messages).forEach(msg => {
+                    if (msg.timestamp > lastReadTimestamp && msg.userId !== currentUserId) {
+                        unreadCount++;
+                    }
+                });
+                
+                const badge = document.getElementById('unreadBadge');
+                if (badge) {
+                    badge.textContent = unreadCount;
+                    badge.setAttribute('data-count', unreadCount);
+                }
+            });
+        }
+
+        async function sendMessage() {
+            if (!firebaseInitialized) return;
+            
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            if (!currentUsername) {
+                alert('Please set your name first!');
+                showUsernames();
+                return;
+            }
+            
+            try {
+                const messageId = Date.now().toString();
+                await db.ref(`messages/${messageId}`).set({
+                    text: text,
+                    userId: currentUserId,
+                    username: currentUsername,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    reactions: {}
+                });
+                
+                input.value = '';
+                input.style.height = 'auto';
+                
+                // Send notification to other user
+                sendLocalNotification(`💬 ${currentUsername}`, text.substring(0, 50));
+            } catch (error) {
+                console.error('Error sending message:', error);
+            }
+        }
+
+        function displayMessages(messagesObj) {
+            const container = document.getElementById('messagesContainer');
+            const messages = Object.entries(messagesObj || {}).map(([id, msg]) => ({ id, ...msg }));
+            
+            if (messages.length === 0) {
+                container.innerHTML = '<div class="empty-messages">No messages yet. Send the first one! 💕</div>';
+                return;
+            }
+            
+            // Sort by timestamp
+            messages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+            
+            container.innerHTML = messages.map(msg => {
+                const isMine = msg.userId === currentUserId;
+                const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+                const senderName = msg.username || 'Unknown';
+                
+                const reactionsHtml = msg.reactions ? Object.entries(msg.reactions)
+                    .reduce((acc, [emoji, users]) => {
+                        const count = Array.isArray(users) ? users.length : (users ? 1 : 0);
+                        if (count > 0) {
+                            acc.push(`<div class="reaction-bubble">${emoji} <span class="reaction-count">${count}</span></div>`);
+                        }
+                        return acc;
+                    }, []).join('') : '';
+                
+                return `
+                    <div class="message-bubble ${isMine ? 'my-message' : 'their-message'}">
+                        <div class="message-content">
+                            ${!isMine ? `<div class="sender-name">${escapeHtml(senderName)}</div>` : ''}
+                            <div class="message-text" onclick="toggleReactionPicker('${msg.id}')" oncontextmenu="toggleReactionPicker('${msg.id}'); return false;">
+                                ${escapeHtml(msg.text)}
+                                <div class="reaction-picker" id="picker-${msg.id}">
+                                    <span class="reaction-option" onclick="addReaction('${msg.id}', '❤️'); event.stopPropagation();">❤️</span>
+                                    <span class="reaction-option" onclick="addReaction('${msg.id}', '😂'); event.stopPropagation();">😂</span>
+                                    <span class="reaction-option" onclick="addReaction('${msg.id}', '😍'); event.stopPropagation();">😍</span>
+                                    <span class="reaction-option" onclick="addReaction('${msg.id}', '🥰'); event.stopPropagation();">🥰</span>
+                                    <span class="reaction-option" onclick="addReaction('${msg.id}', '👍'); event.stopPropagation();">👍</span>
+                                    <span class="reaction-option" onclick="addReaction('${msg.id}', '😢'); event.stopPropagation();">😢</span>
+                                </div>
+                            </div>
+                            ${reactionsHtml ? `<div class="message-reactions">${reactionsHtml}</div>` : ''}
+                            <div class="message-time">${time}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Scroll to bottom
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 100);
+        }
+
+        function toggleReactionPicker(messageId) {
+            const picker = document.getElementById(`picker-${messageId}`);
+            if (picker) {
+                // Close all other pickers
+                document.querySelectorAll('.reaction-picker').forEach(p => {
+                    if (p.id !== `picker-${messageId}`) {
+                        p.classList.remove('active');
+                    }
+                });
+                picker.classList.toggle('active');
+            }
+        }
+
+        async function addReaction(messageId, emoji) {
+            if (!firebaseInitialized) return;
+            
+            try {
+                const reactionRef = db.ref(`messages/${messageId}/reactions/${emoji}`);
+                const snapshot = await reactionRef.once('value');
+                let users = snapshot.val() || [];
+                
+                if (!Array.isArray(users)) users = [];
+                
+                if (users.includes(currentUserId)) {
+                    // Remove reaction
+                    users = users.filter(id => id !== currentUserId);
+                } else {
+                    // Add reaction
+                    users.push(currentUserId);
+                }
+                
+                await reactionRef.set(users.length > 0 ? users : null);
+                
+                // Close picker
+                document.getElementById(`picker-${messageId}`)?.classList.remove('active');
+            } catch (error) {
+                console.error('Error adding reaction:', error);
+            }
+        }
+
+        function setupMessagingListeners() {
+            if (!firebaseInitialized) return;
+            
+            db.ref('messages').on('value', (snapshot) => {
+                displayMessages(snapshot.val());
+                updateUnreadCount();
+            });
+        }
+
+        // Auto-resize message input
+        document.addEventListener('DOMContentLoaded', () => {
+            const messageInput = document.getElementById('messageInput');
+            if (messageInput) {
+                messageInput.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+                });
+                
+                messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                });
+            }
+            
+            const usernameInput = document.getElementById('usernameInput');
+            if (usernameInput) {
+                usernameInput.value = currentUsername;
+                usernameInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        saveUsername();
+                    }
+                });
+            }
+            
+            // Update unread count periodically
+            setInterval(updateUnreadCount, 5000);
+        });
 
         // Love Notes Functions
         function editNote(noteNum) {
@@ -1851,6 +2476,7 @@
         checkSetup();
         checkSpotifyToken();
         setupMusicListeners();
+        setupMessagingListeners();
         
         // Request notification permission on load
         setTimeout(requestNotificationPermission, 2000);
