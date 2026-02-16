@@ -1087,10 +1087,68 @@
             color: #999;
             margin-top: 4px;
             text-align: right;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            justify-content: flex-end;
         }
 
         .their-message .message-time {
             text-align: left;
+            justify-content: flex-start;
+        }
+
+        .message-status {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 0.9em;
+        }
+
+        .status-checkmarks {
+            display: inline-flex;
+            gap: -2px;
+            position: relative;
+        }
+
+        .checkmark {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1.5px solid #999;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            transition: all 0.3s;
+        }
+
+        .checkmark::before {
+            content: '✓';
+            color: transparent;
+        }
+
+        .checkmark.filled {
+            border-color: #4a90e2;
+            background: #4a90e2;
+        }
+
+        .checkmark.filled::before {
+            color: white;
+        }
+
+        .checkmark.read {
+            border-color: #4a90e2;
+        }
+
+        .checkmark.read::before {
+            color: #4a90e2;
+        }
+
+        .status-text {
+            font-size: 0.85em;
+            color: #999;
+            font-style: italic;
         }
 
         .message-reactions {
@@ -1821,14 +1879,13 @@
                     userId: currentUserId,
                     username: currentUsername,
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
-                    reactions: {}
+                    reactions: {},
+                    status: 'delivered',
+                    readBy: []
                 });
                 
                 input.value = '';
                 input.style.height = 'auto';
-                
-                // Send notification to other user
-                sendLocalNotification(`💬 ${currentUsername}`, text.substring(0, 50));
             } catch (error) {
                 console.error('Error sending message:', error);
             }
@@ -1846,10 +1903,69 @@
             // Sort by timestamp
             messages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
             
+            // Mark messages as read when viewing
+            messages.forEach(msg => {
+                if (msg.userId !== currentUserId && msg.id) {
+                    const readBy = msg.readBy || [];
+                    if (!readBy.includes(currentUserId)) {
+                        // Mark as read
+                        db.ref(`messages/${msg.id}/readBy`).once('value', (snapshot) => {
+                            const current = snapshot.val() || [];
+                            if (!current.includes(currentUserId)) {
+                                db.ref(`messages/${msg.id}/readBy`).set([...current, currentUserId]);
+                            }
+                        });
+                    }
+                }
+            });
+            
+            // Check for new messages from other person (for notifications)
+            const lastMessage = messages[messages.length - 1];
+            if (lastMessage && 
+                lastMessage.userId !== currentUserId && 
+                lastMessage.timestamp > lastReadTimestamp) {
+                // New message from other person!
+                sendLocalNotification(
+                    `💬 ${lastMessage.username || 'New Message'}`, 
+                    lastMessage.text.substring(0, 100)
+                );
+            }
+            
             container.innerHTML = messages.map(msg => {
                 const isMine = msg.userId === currentUserId;
                 const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
                 const senderName = msg.username || 'Unknown';
+                
+                // Determine message status
+                let statusHtml = '';
+                if (isMine) {
+                    const readBy = msg.readBy || [];
+                    const isRead = readBy.length > 1 || (readBy.length === 1 && readBy[0] !== currentUserId);
+                    
+                    if (isRead) {
+                        // Read by other person - filled blue checkmarks
+                        statusHtml = `
+                            <div class="message-status">
+                                <div class="status-checkmarks">
+                                    <div class="checkmark filled"></div>
+                                    <div class="checkmark filled"></div>
+                                </div>
+                                <span class="status-text">Read</span>
+                            </div>
+                        `;
+                    } else {
+                        // Delivered but not read - outline checkmarks
+                        statusHtml = `
+                            <div class="message-status">
+                                <div class="status-checkmarks">
+                                    <div class="checkmark read"></div>
+                                    <div class="checkmark read"></div>
+                                </div>
+                                <span class="status-text">Delivered</span>
+                            </div>
+                        `;
+                    }
+                }
                 
                 const reactionsHtml = msg.reactions ? Object.entries(msg.reactions)
                     .reduce((acc, [emoji, users]) => {
@@ -1876,7 +1992,10 @@
                                 </div>
                             </div>
                             ${reactionsHtml ? `<div class="message-reactions">${reactionsHtml}</div>` : ''}
-                            <div class="message-time">${time}</div>
+                            <div class="message-time">
+                                ${time}
+                                ${statusHtml}
+                            </div>
                         </div>
                     </div>
                 `;
