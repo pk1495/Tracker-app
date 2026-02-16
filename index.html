@@ -278,6 +278,163 @@
             gap: 8px;
         }
 
+        /* Image Cropping Modal */
+        .crop-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 4000;
+            flex-direction: column;
+        }
+
+        .crop-modal.active {
+            display: flex;
+        }
+
+        .crop-modal-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .crop-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .crop-title {
+            color: white;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .crop-cancel-btn,
+        .crop-done-btn {
+            background: none;
+            border: none;
+            color: #ff69b4;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 8px 15px;
+        }
+
+        .crop-done-btn {
+            color: #4a90e2;
+        }
+
+        .crop-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #cropCanvas {
+            max-width: 100%;
+            max-height: 100%;
+            cursor: move;
+        }
+
+        .crop-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .crop-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 280px;
+            height: 280px;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+        }
+
+        .crop-controls {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .zoom-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .zoom-control button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zoom-control button:active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #zoomSlider {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        #zoomSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        #zoomSlider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        @media (max-width: 600px) {
+            .crop-circle {
+                width: 240px;
+                height: 240px;
+            }
+        }
+
         .section {
             margin-bottom: 35px;
             background: #fff5f9;
@@ -1566,6 +1723,30 @@
         </div>
     </div>
 
+    <!-- Image Cropping Modal -->
+    <div class="crop-modal" id="cropModal">
+        <div class="crop-modal-content">
+            <div class="crop-header">
+                <button class="crop-cancel-btn" onclick="cancelCrop()">Cancel</button>
+                <div class="crop-title">Move and Scale</div>
+                <button class="crop-done-btn" onclick="applyCrop()">Done</button>
+            </div>
+            <div class="crop-container" id="cropContainer">
+                <canvas id="cropCanvas"></canvas>
+                <div class="crop-overlay">
+                    <div class="crop-circle"></div>
+                </div>
+            </div>
+            <div class="crop-controls">
+                <div class="zoom-control">
+                    <button onclick="zoomImage(-0.1)">−</button>
+                    <input type="range" id="zoomSlider" min="1" max="3" step="0.1" value="1" oninput="updateZoom(this.value)">
+                    <button onclick="zoomImage(0.1)">+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let db;
         let firebaseInitialized = false;
@@ -1885,6 +2066,14 @@
         let lastMessageCount = 0;
         let lastReadTimestamp = parseInt(localStorage.getItem('last_read_timestamp') || '0');
 
+        let cropImage = null;
+        let cropScale = 1;
+        let cropX = 0;
+        let cropY = 0;
+        let isDragging = false;
+        let lastX = 0;
+        let lastY = 0;
+
         function handleProfilePicChange(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1903,15 +2092,180 @@
             
             const reader = new FileReader();
             reader.onload = function(e) {
-                const imageData = e.target.result;
-                
-                // Show preview
-                document.getElementById('profilePicPreview').innerHTML = `<img src="${imageData}" alt="Profile">`;
-                
-                // Save temporarily (will save to Firebase when user clicks Save)
-                currentProfilePic = imageData;
+                const img = new Image();
+                img.onload = function() {
+                    cropImage = img;
+                    openCropModal();
+                };
+                img.src = e.target.result;
             };
             reader.readAsDataURL(file);
+        }
+
+        function openCropModal() {
+            document.getElementById('cropModal').classList.add('active');
+            document.getElementById('usernameModal').style.display = 'none';
+            
+            const canvas = document.getElementById('cropCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            const maxSize = Math.min(window.innerWidth, window.innerHeight * 0.6);
+            canvas.width = maxSize;
+            canvas.height = maxSize;
+            
+            // Calculate initial position (center image)
+            cropScale = Math.max(maxSize / cropImage.width, maxSize / cropImage.height);
+            cropX = (maxSize - cropImage.width * cropScale) / 2;
+            cropY = (maxSize - cropImage.height * cropScale) / 2;
+            
+            drawCropCanvas();
+            setupCropDrag();
+        }
+
+        function drawCropCanvas() {
+            const canvas = document.getElementById('cropCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(cropImage, cropX, cropY, cropImage.width * cropScale, cropImage.height * cropScale);
+        }
+
+        function setupCropDrag() {
+            const canvas = document.getElementById('cropCanvas');
+            
+            canvas.addEventListener('mousedown', startDrag);
+            canvas.addEventListener('mousemove', drag);
+            canvas.addEventListener('mouseup', stopDrag);
+            canvas.addEventListener('mouseleave', stopDrag);
+            
+            canvas.addEventListener('touchstart', startDrag);
+            canvas.addEventListener('touchmove', drag);
+            canvas.addEventListener('touchend', stopDrag);
+        }
+
+        function startDrag(e) {
+            isDragging = true;
+            const pos = getEventPosition(e);
+            lastX = pos.x;
+            lastY = pos.y;
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            const pos = getEventPosition(e);
+            const dx = pos.x - lastX;
+            const dy = pos.y - lastY;
+            
+            cropX += dx;
+            cropY += dy;
+            
+            lastX = pos.x;
+            lastY = pos.y;
+            
+            drawCropCanvas();
+        }
+
+        function stopDrag() {
+            isDragging = false;
+        }
+
+        function getEventPosition(e) {
+            const canvas = document.getElementById('cropCanvas');
+            const rect = canvas.getBoundingClientRect();
+            
+            if (e.touches && e.touches[0]) {
+                return {
+                    x: e.touches[0].clientX - rect.left,
+                    y: e.touches[0].clientY - rect.top
+                };
+            }
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        function updateZoom(value) {
+            const oldScale = cropScale;
+            cropScale = parseFloat(value);
+            
+            // Adjust position to zoom from center
+            const canvas = document.getElementById('cropCanvas');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            cropX = centerX - (centerX - cropX) * (cropScale / oldScale);
+            cropY = centerY - (centerY - cropY) * (cropScale / oldScale);
+            
+            drawCropCanvas();
+        }
+
+        function zoomImage(delta) {
+            const slider = document.getElementById('zoomSlider');
+            const newValue = Math.max(1, Math.min(3, parseFloat(slider.value) + delta));
+            slider.value = newValue;
+            updateZoom(newValue);
+        }
+
+        function applyCrop() {
+            const canvas = document.getElementById('cropCanvas');
+            const outputCanvas = document.createElement('canvas');
+            const outputSize = 300;
+            outputCanvas.width = outputSize;
+            outputCanvas.height = outputSize;
+            const outputCtx = outputCanvas.getContext('2d');
+            
+            // Calculate circle center and radius
+            const circleRadius = 140; // 280px diameter / 2
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // Create circular clip path
+            outputCtx.beginPath();
+            outputCtx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
+            outputCtx.closePath();
+            outputCtx.clip();
+            
+            // Calculate scale to fit circle
+            const scale = outputSize / (circleRadius * 2);
+            const sourceX = (centerX - circleRadius - cropX) / cropScale;
+            const sourceY = (centerY - circleRadius - cropY) / cropScale;
+            const sourceSize = (circleRadius * 2) / cropScale;
+            
+            outputCtx.drawImage(
+                cropImage,
+                sourceX,
+                sourceY,
+                sourceSize,
+                sourceSize,
+                0,
+                0,
+                outputSize,
+                outputSize
+            );
+            
+            // Convert to data URL
+            const croppedImage = outputCanvas.toDataURL('image/jpeg', 0.9);
+            currentProfilePic = croppedImage;
+            
+            // Show preview
+            document.getElementById('profilePicPreview').innerHTML = `<img src="${croppedImage}" alt="Profile">`;
+            
+            // Close crop modal and reopen username modal
+            closeCropModal();
+        }
+
+        function cancelCrop() {
+            closeCropModal();
+        }
+
+        function closeCropModal() {
+            document.getElementById('cropModal').classList.remove('active');
+            document.getElementById('usernameModal').style.display = 'flex';
+            document.getElementById('profilePicInput').value = '';
         }
 
         function loadProfilePicPreview() {
