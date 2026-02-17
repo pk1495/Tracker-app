@@ -1719,7 +1719,36 @@
                 <label>Your Name:</label>
                 <input type="text" id="usernameInput" placeholder="Enter your name" maxlength="20">
             </div>
+            
+            <div class="form-group">
+                <label>Phone Number (for account recovery):</label>
+                <input type="tel" id="phoneNumberInput" placeholder="+1 (555) 123-4567" maxlength="20">
+                <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
+                    This lets you log in from multiple devices
+                </div>
+            </div>
+            
             <button onclick="saveUsername()" style="width: 100%; margin-top: 10px;">Save Profile</button>
+        </div>
+    </div>
+
+    <!-- Phone Number Login Modal -->
+    <div class="username-modal" id="phoneLoginModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-title">Welcome Back! 📱</div>
+            <p style="text-align: center; color: #666; margin-bottom: 20px;">
+                Enter your phone number to recover your account
+            </p>
+            
+            <div class="form-group">
+                <label>Phone Number:</label>
+                <input type="tel" id="phoneLoginInput" placeholder="+1 (555) 123-4567" maxlength="20">
+            </div>
+            
+            <button onclick="loginWithPhone()" style="width: 100%; margin-top: 10px;">Continue</button>
+            <button onclick="skipPhoneLogin()" style="width: 100%; margin-top: 10px; background: #6c757d;">
+                Create New Account
+            </button>
         </div>
     </div>
 
@@ -2059,15 +2088,84 @@
         }
 
         // === MESSAGING SYSTEM ===
-        let currentUserId = localStorage.getItem('user_id') || 'user_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('user_id', currentUserId);
+        let currentUserId = localStorage.getItem('user_id') || null;
         let currentUsername = localStorage.getItem('username') || '';
         let currentProfilePic = localStorage.getItem('profile_pic') || '';
+        let currentPhoneNumber = localStorage.getItem('phone_number') || '';
         let lastMessageCount = 0;
         let lastReadTimestamp = parseInt(localStorage.getItem('last_read_timestamp') || '0');
 
+        // Check if user needs to log in with phone or create new account
+        function checkUserLogin() {
+            if (!currentUserId) {
+                // No user ID - check if they want to log in with phone
+                document.getElementById('phoneLoginModal').classList.add('active');
+            }
+        }
+
+        async function loginWithPhone() {
+            const phone = document.getElementById('phoneLoginInput').value.trim();
+            if (!phone) {
+                alert('Please enter your phone number');
+                return;
+            }
+            
+            if (!firebaseInitialized) {
+                alert('Please wait for Firebase to connect...');
+                return;
+            }
+            
+            try {
+                // Search for user with this phone number
+                const snapshot = await db.ref('phoneNumbers').orderByChild('phoneNumber').equalTo(phone).once('value');
+                
+                if (snapshot.exists()) {
+                    // Found account!
+                    const data = snapshot.val();
+                    const userId = Object.keys(data)[0];
+                    const userData = data[userId];
+                    
+                    // Restore user data
+                    currentUserId = userId;
+                    currentUsername = userData.username || '';
+                    currentProfilePic = userData.profilePic || '';
+                    currentPhoneNumber = phone;
+                    
+                    // Save locally
+                    localStorage.setItem('user_id', currentUserId);
+                    localStorage.setItem('username', currentUsername);
+                    localStorage.setItem('profile_pic', currentProfilePic);
+                    localStorage.setItem('phone_number', phone);
+                    
+                    loadProfilePicPreview();
+                    document.getElementById('phoneLoginModal').classList.remove('active');
+                    
+                    alert('Welcome back! 🥰');
+                } else {
+                    alert('No account found with this phone number. Please create a new account.');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('Error logging in. Please try again.');
+            }
+        }
+
+        function skipPhoneLogin() {
+            // Create new user ID
+            currentUserId = 'user_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('user_id', currentUserId);
+            
+            document.getElementById('phoneLoginModal').classList.remove('active');
+            
+            // Prompt for profile setup
+            setTimeout(() => {
+                document.getElementById('usernameModal').classList.add('active');
+            }, 500);
+        }
+
         let cropImage = null;
         let cropScale = 1;
+        let initialScale = 1;
         let cropX = 0;
         let cropY = 0;
         let isDragging = false;
@@ -2114,10 +2212,19 @@
             canvas.width = maxSize;
             canvas.height = maxSize;
             
-            // Calculate initial position (center image)
-            cropScale = Math.max(maxSize / cropImage.width, maxSize / cropImage.height);
+            // Calculate initial scale - FIT the image so entire image is visible
+            // Don't zoom in, let user zoom if they want
+            const scaleX = maxSize / cropImage.width;
+            const scaleY = maxSize / cropImage.height;
+            initialScale = Math.min(scaleX, scaleY) * 0.9; // 0.9 to add some padding
+            cropScale = initialScale;
+            
+            // Center the image
             cropX = (maxSize - cropImage.width * cropScale) / 2;
             cropY = (maxSize - cropImage.height * cropScale) / 2;
+            
+            // Reset zoom slider
+            document.getElementById('zoomSlider').value = 1;
             
             drawCropCanvas();
             setupCropDrag();
@@ -2189,8 +2296,9 @@
         }
 
         function updateZoom(value) {
+            const zoomMultiplier = parseFloat(value);
             const oldScale = cropScale;
-            cropScale = parseFloat(value);
+            cropScale = initialScale * zoomMultiplier; // Zoom relative to initial scale
             
             // Adjust position to zoom from center
             const canvas = document.getElementById('cropCanvas');
@@ -2305,9 +2413,17 @@
         function saveUsername() {
             const input = document.getElementById('usernameInput');
             const name = input.value.trim();
+            const phone = document.getElementById('phoneNumberInput').value.trim();
+            
             if (name) {
                 currentUsername = name;
                 localStorage.setItem('username', name);
+                
+                // Save phone number if provided
+                if (phone) {
+                    currentPhoneNumber = phone;
+                    localStorage.setItem('phone_number', phone);
+                }
                 
                 // Save profile pic if set
                 if (currentProfilePic) {
@@ -2321,11 +2437,22 @@
                         profilePic: currentProfilePic || null,
                         lastSeen: firebase.database.ServerValue.TIMESTAMP
                     });
+                    
+                    // Save phone number mapping if provided
+                    if (phone) {
+                        db.ref(`phoneNumbers/${currentUserId}`).set({
+                            phoneNumber: phone,
+                            username: name,
+                            profilePic: currentProfilePic || null,
+                            userId: currentUserId
+                        });
+                    }
                 }
                 
                 loadProfilePicPreview();
                 document.getElementById('usernameModal').classList.remove('active');
                 input.value = '';
+                document.getElementById('phoneNumberInput').value = '';
             }
         }
 
@@ -3143,6 +3270,7 @@
         initWaterGlasses();
         updateGreeting();
         checkSetup();
+        checkUserLogin();
         checkSpotifyToken();
         setupMusicListeners();
         setupMessagingListeners();
