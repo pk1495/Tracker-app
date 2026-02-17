@@ -15,6 +15,9 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
     
+    <!-- OneSignal SDK -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -1727,6 +1730,9 @@
                     📱 <strong>Important:</strong> Add your phone number to use the same account on phone AND computer!<br>
                     Without this, each device will have a separate account.
                 </div>
+                <button onclick="openAccountMergeFromProfile()" style="width: 100%; margin-top: 10px; background: #17a2b8; font-size: 0.9em;">
+                    🔗 Already have accounts? Click here to merge
+                </button>
             </div>
             
             <button onclick="saveUsername()" style="width: 100%; margin-top: 10px;">Save Profile</button>
@@ -1750,6 +1756,51 @@
             <button onclick="skipPhoneLogin()" style="width: 100%; margin-top: 10px; background: #6c757d;">
                 Create New Account
             </button>
+        </div>
+    </div>
+
+    <!-- Account Merge Modal -->
+    <div class="username-modal" id="accountMergeModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-title">🔗 Link Your Devices</div>
+            <p style="text-align: center; color: #666; margin-bottom: 20px;">
+                Use the same account on phone AND computer
+            </p>
+            
+            <div style="background: #fff3cd; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                <strong>⚠️ Do this on BOTH devices with the SAME phone number!</strong>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                <strong>Your Current Info:</strong><br>
+                <div style="margin-top: 10px; font-size: 0.9em;">
+                    Name: <strong><span id="currentUsernameDisplay"></span></strong><br>
+                    <span style="font-size: 0.8em; color: #666;">User ID: <span id="currentUserIdDisplay"></span></span>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Enter a Phone Number:</label>
+                <input type="tel" id="mergePhoneInput" placeholder="+1 555 123 4567" maxlength="20">
+                <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
+                    Use the EXACT same number on all your devices
+                </div>
+            </div>
+            
+            <button onclick="performAccountLink()" style="width: 100%; margin-top: 10px; background: #28a745;">
+                ✅ Link This Device
+            </button>
+            
+            <button onclick="closeAccountMerge()" style="width: 100%; margin-top: 10px; background: #6c757d;">
+                Cancel
+            </button>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 10px; font-size: 0.85em; line-height: 1.6;">
+                <strong>📱 How it works:</strong><br>
+                <strong>Step 1:</strong> On your phone, enter a phone number and click "Link"<br>
+                <strong>Step 2:</strong> On your computer, do the SAME thing with the SAME number<br>
+                <strong>Step 3:</strong> Reload both pages - you'll now be the same user! 🎉
+            </div>
         </div>
     </div>
 
@@ -1780,6 +1831,90 @@
     <script>
         let db;
         let firebaseInitialized = false;
+        let oneSignalInitialized = false;
+
+        // === ONESIGNAL PUSH NOTIFICATIONS ===
+        // REPLACE 'YOUR_APP_ID' WITH YOUR ACTUAL ONESIGNAL APP ID
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        
+        OneSignalDeferred.push(async function(OneSignal) {
+            await OneSignal.init({
+                appId: "14681724-957d-434d-9587-53e961bfde04", // Your OneSignal App ID
+                safari_web_id: "web.onesignal.auto.xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                notifyButton: {
+                    enable: false, // We'll handle notification permission ourselves
+                },
+                allowLocalhostAsSecureOrigin: true,
+            });
+            
+            oneSignalInitialized = true;
+            console.log('OneSignal initialized');
+            
+            // Save OneSignal Player ID (user's notification identifier)
+            const playerId = await OneSignal.User.PushSubscription.id;
+            if (playerId && currentUserId && firebaseInitialized) {
+                await db.ref(`users/${currentUserId}/oneSignalId`).set(playerId);
+                console.log('OneSignal Player ID saved:', playerId);
+            }
+        });
+
+        // Function to request notification permission
+        async function requestNotificationPermission() {
+            if ('Notification' in window && oneSignalInitialized) {
+                try {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        console.log('Notification permission granted');
+                        
+                        // Get OneSignal Player ID and save it
+                        OneSignalDeferred.push(async function(OneSignal) {
+                            const playerId = await OneSignal.User.PushSubscription.id;
+                            if (playerId && currentUserId && firebaseInitialized) {
+                                await db.ref(`users/${currentUserId}/oneSignalId`).set(playerId);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Notification permission error:', error);
+                }
+            }
+        }
+
+        // Send notification via OneSignal
+        async function sendOneSignalNotification(title, message, userId) {
+            if (!firebaseInitialized) return;
+            
+            try {
+                // Get the target user's OneSignal ID
+                const snapshot = await db.ref(`users/${userId}/oneSignalId`).once('value');
+                const oneSignalId = snapshot.val();
+                
+                if (oneSignalId) {
+                    // Send via OneSignal REST API
+                    const response = await fetch('https://onesignal.com/api/v1/notifications', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Basic os_v2_app_crubojevpvbu3fmhkpuwdp66arsdbbg2j6murq432vxpoe4e3mmgloynf3r2qn3yhftufo3nvvpyiievx2ifexa4w42aijh5nc2cq6q'
+                        },
+                        body: JSON.stringify({
+                            app_id: '14681724-957d-434d-9587-53e961bfde04', // Your OneSignal App ID
+                            include_player_ids: [oneSignalId],
+                            headings: { en: title },
+                            contents: { en: message },
+                            url: 'https://pk1495.github.io/Tracker-app/',
+                            chrome_web_icon: 'https://pk1495.github.io/Tracker-app/icon-192.png'
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        console.log('OneSignal notification sent');
+                    }
+                }
+            } catch (error) {
+                console.error('OneSignal notification error:', error);
+            }
+        }
 
         function initFirebase(config) {
             try {
@@ -1942,6 +2077,20 @@
                     createdAt: firebase.database.ServerValue.TIMESTAMP
                 });
                 input.value = '';
+                
+                // Send OneSignal notification to all other users
+                const usersSnapshot = await db.ref('users').once('value');
+                const users = usersSnapshot.val() || {};
+                
+                for (const [userId, userData] of Object.entries(users)) {
+                    if (userId !== currentUserId && userData.oneSignalId) {
+                        await sendOneSignalNotification(
+                            '📝 New Task Added!',
+                            text,
+                            userId
+                        );
+                    }
+                }
             } catch (error) {
                 showStatus('Failed to add task', 'error');
             }
@@ -1996,6 +2145,20 @@
                     createdAt: firebase.database.ServerValue.TIMESTAMP
                 });
                 input.value = '';
+                
+                // Send OneSignal notification to all other users
+                const usersSnapshot = await db.ref('users').once('value');
+                const users = usersSnapshot.val() || {};
+                
+                for (const [userId, userData] of Object.entries(users)) {
+                    if (userId !== currentUserId && userData.oneSignalId) {
+                        await sendOneSignalNotification(
+                            '🍽️ New Meal Added!',
+                            text,
+                            userId
+                        );
+                    }
+                }
             } catch (error) {
                 showStatus('Failed to add meal', 'error');
             }
@@ -2230,6 +2393,104 @@
             } catch (error) {
                 console.error('Error linking phone:', error);
                 return false;
+            }
+        }
+
+        // Open account merge modal
+        function openAccountMerge() {
+            document.getElementById('accountMergeModal').classList.add('active');
+            document.getElementById('currentUsernameDisplay').textContent = currentUsername || 'Not set';
+            document.getElementById('currentUserIdDisplay').textContent = currentUserId || 'None';
+            document.getElementById('mergePhoneInput').value = currentPhoneNumber || '';
+        }
+
+        // Open from profile modal
+        function openAccountMergeFromProfile() {
+            document.getElementById('usernameModal').classList.remove('active');
+            setTimeout(() => openAccountMerge(), 300);
+        }
+
+        // Close account merge modal
+        function closeAccountMerge() {
+            document.getElementById('accountMergeModal').classList.remove('active');
+        }
+
+        // Perform account link
+        async function performAccountLink() {
+            const phone = document.getElementById('mergePhoneInput').value.trim();
+            
+            if (!phone) {
+                alert('Please enter a phone number');
+                return;
+            }
+            
+            if (!currentUsername) {
+                alert('Please set your name in your profile first!');
+                closeAccountMerge();
+                setTimeout(() => showUsernames(), 500);
+                return;
+            }
+            
+            if (!firebaseInitialized) {
+                alert('Please wait for Firebase to connect...');
+                return;
+            }
+            
+            try {
+                // Check if this phone is already linked to another account
+                const snapshot = await db.ref('phoneNumbers').once('value');
+                const allPhones = snapshot.val() || {};
+                
+                let existingUserId = null;
+                for (const [userId, data] of Object.entries(allPhones)) {
+                    if (data.phoneNumber === phone && userId !== currentUserId) {
+                        existingUserId = userId;
+                        break;
+                    }
+                }
+                
+                if (existingUserId) {
+                    // Phone is already linked to another account - merge!
+                    const mergeConfirm = confirm(
+                        `This phone number is already linked to another account!\n\n` +
+                        `Do you want to SWITCH to that account?\n\n` +
+                        `⚠️ This will replace your current user ID with the existing account.`
+                    );
+                    
+                    if (mergeConfirm) {
+                        // Get the existing account data
+                        const existingSnapshot = await db.ref(`phoneNumbers/${existingUserId}`).once('value');
+                        const existingData = existingSnapshot.val();
+                        
+                        // Switch to the existing account
+                        currentUserId = existingUserId;
+                        currentUsername = existingData.username || currentUsername;
+                        currentProfilePic = existingData.profilePic || currentProfilePic;
+                        currentPhoneNumber = phone;
+                        
+                        // Save locally
+                        localStorage.setItem('user_id', currentUserId);
+                        localStorage.setItem('username', currentUsername);
+                        localStorage.setItem('profile_pic', currentProfilePic);
+                        localStorage.setItem('phone_number', phone);
+                        localStorage.setItem('account_linked', 'true');
+                        
+                        alert(`✅ Success! You're now using the account linked to ${phone}\n\nReloading page...`);
+                        
+                        // Reload page
+                        setTimeout(() => location.reload(), 1000);
+                    }
+                } else {
+                    // No existing account - just link this account to the phone
+                    await linkPhoneToAccount(phone);
+                    
+                    alert(`✅ Account linked to ${phone}!\n\nNow do the same on your other device with the SAME number.`);
+                    
+                    closeAccountMerge();
+                }
+            } catch (error) {
+                console.error('Account link error:', error);
+                alert('Error linking account. Please try again.');
             }
         }
 
@@ -2566,6 +2827,21 @@
                 
                 input.value = '';
                 input.style.height = 'auto';
+                
+                // Send OneSignal notification to all other users
+                const usersSnapshot = await db.ref('users').once('value');
+                const users = usersSnapshot.val() || {};
+                
+                for (const [userId, userData] of Object.entries(users)) {
+                    if (userId !== currentUserId && userData.oneSignalId) {
+                        // Send notification via OneSignal
+                        await sendOneSignalNotification(
+                            `💬 ${currentUsername}`,
+                            text.substring(0, 100),
+                            userId
+                        );
+                    }
+                }
             } catch (error) {
                 console.error('Error sending message:', error);
             }
