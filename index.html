@@ -1721,10 +1721,11 @@
             </div>
             
             <div class="form-group">
-                <label>Phone Number (for account recovery):</label>
+                <label>Phone Number (Link Your Account):</label>
                 <input type="tel" id="phoneNumberInput" placeholder="+1 (555) 123-4567" maxlength="20">
-                <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
-                    This lets you log in from multiple devices
+                <div style="font-size: 0.8em; color: #666; margin-top: 5px; line-height: 1.4;">
+                    📱 <strong>Important:</strong> Add your phone number to use the same account on phone AND computer!<br>
+                    Without this, each device will have a separate account.
                 </div>
             </div>
             
@@ -2094,12 +2095,33 @@
         let currentPhoneNumber = localStorage.getItem('phone_number') || '';
         let lastMessageCount = 0;
         let lastReadTimestamp = parseInt(localStorage.getItem('last_read_timestamp') || '0');
+        let isAccountLinked = localStorage.getItem('account_linked') === 'true';
 
         // Check if user needs to log in with phone or create new account
-        function checkUserLogin() {
+        async function checkUserLogin() {
+            // If no user ID at all, show phone login
             if (!currentUserId) {
-                // No user ID - check if they want to log in with phone
                 document.getElementById('phoneLoginModal').classList.add('active');
+                return;
+            }
+            
+            // If user has ID but hasn't linked to phone yet, prompt them
+            if (!isAccountLinked && !currentPhoneNumber) {
+                setTimeout(() => {
+                    const linkAccount = confirm(
+                        "💡 Link Your Account!\n\n" +
+                        "Link your account with a phone number so you can:\n" +
+                        "✅ Use the same account on multiple devices\n" +
+                        "✅ Recover your account if you reinstall\n\n" +
+                        "Would you like to link your account now?"
+                    );
+                    
+                    if (linkAccount) {
+                        showUsernames(); // Opens profile modal where they can add phone
+                    } else {
+                        localStorage.setItem('account_linked', 'true'); // Don't ask again
+                    }
+                }, 3000); // Wait 3 seconds after app loads
             }
         }
 
@@ -2117,18 +2139,26 @@
             
             try {
                 // Search for user with this phone number
-                const snapshot = await db.ref('phoneNumbers').orderByChild('phoneNumber').equalTo(phone).once('value');
+                const snapshot = await db.ref('phoneNumbers').once('value');
+                const allPhones = snapshot.val() || {};
                 
-                if (snapshot.exists()) {
+                let foundUserId = null;
+                let foundUserData = null;
+                
+                // Search through all phone numbers
+                for (const [userId, data] of Object.entries(allPhones)) {
+                    if (data.phoneNumber === phone) {
+                        foundUserId = userId;
+                        foundUserData = data;
+                        break;
+                    }
+                }
+                
+                if (foundUserId) {
                     // Found account!
-                    const data = snapshot.val();
-                    const userId = Object.keys(data)[0];
-                    const userData = data[userId];
-                    
-                    // Restore user data
-                    currentUserId = userId;
-                    currentUsername = userData.username || '';
-                    currentProfilePic = userData.profilePic || '';
+                    currentUserId = foundUserId;
+                    currentUsername = foundUserData.username || '';
+                    currentProfilePic = foundUserData.profilePic || '';
                     currentPhoneNumber = phone;
                     
                     // Save locally
@@ -2136,13 +2166,28 @@
                     localStorage.setItem('username', currentUsername);
                     localStorage.setItem('profile_pic', currentProfilePic);
                     localStorage.setItem('phone_number', phone);
+                    localStorage.setItem('account_linked', 'true');
                     
                     loadProfilePicPreview();
                     document.getElementById('phoneLoginModal').classList.remove('active');
                     
-                    alert('Welcome back! 🥰');
+                    alert('✅ Welcome back, ' + currentUsername + '! 🥰');
+                    
+                    // Reload page to refresh everything
+                    setTimeout(() => location.reload(), 500);
                 } else {
-                    alert('No account found with this phone number. Please create a new account.');
+                    const createNew = confirm(
+                        "No account found with this phone number.\n\n" +
+                        "Would you like to create a new account with this number?"
+                    );
+                    
+                    if (createNew) {
+                        skipPhoneLogin();
+                        // Pre-fill phone number
+                        setTimeout(() => {
+                            document.getElementById('phoneNumberInput').value = phone;
+                        }, 500);
+                    }
                 }
             } catch (error) {
                 console.error('Login error:', error);
@@ -2161,6 +2206,31 @@
             setTimeout(() => {
                 document.getElementById('usernameModal').classList.add('active');
             }, 500);
+        }
+
+        // Function to manually link existing account to phone
+        async function linkPhoneToAccount(phone) {
+            if (!currentUserId || !phone) return;
+            
+            try {
+                // Save phone number mapping
+                await db.ref(`phoneNumbers/${currentUserId}`).set({
+                    phoneNumber: phone,
+                    username: currentUsername,
+                    profilePic: currentProfilePic || null,
+                    userId: currentUserId,
+                    linkedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+                
+                localStorage.setItem('phone_number', phone);
+                localStorage.setItem('account_linked', 'true');
+                
+                console.log('Account linked to phone:', phone);
+                return true;
+            } catch (error) {
+                console.error('Error linking phone:', error);
+                return false;
+            }
         }
 
         let cropImage = null;
@@ -2410,7 +2480,7 @@
             document.getElementById('usernameModal').classList.add('active');
         }
 
-        function saveUsername() {
+        async function saveUsername() {
             const input = document.getElementById('usernameInput');
             const name = input.value.trim();
             const phone = document.getElementById('phoneNumberInput').value.trim();
@@ -2419,12 +2489,6 @@
                 currentUsername = name;
                 localStorage.setItem('username', name);
                 
-                // Save phone number if provided
-                if (phone) {
-                    currentPhoneNumber = phone;
-                    localStorage.setItem('phone_number', phone);
-                }
-                
                 // Save profile pic if set
                 if (currentProfilePic) {
                     localStorage.setItem('profile_pic', currentProfilePic);
@@ -2432,20 +2496,17 @@
                 
                 // Save to Firebase
                 if (firebaseInitialized) {
-                    db.ref(`users/${currentUserId}`).set({
+                    await db.ref(`users/${currentUserId}`).set({
                         name: name,
                         profilePic: currentProfilePic || null,
                         lastSeen: firebase.database.ServerValue.TIMESTAMP
                     });
                     
-                    // Save phone number mapping if provided
+                    // Link phone number if provided
                     if (phone) {
-                        db.ref(`phoneNumbers/${currentUserId}`).set({
-                            phoneNumber: phone,
-                            username: name,
-                            profilePic: currentProfilePic || null,
-                            userId: currentUserId
-                        });
+                        currentPhoneNumber = phone;
+                        await linkPhoneToAccount(phone);
+                        alert('✅ Account linked to ' + phone + '!\n\nYou can now log in from any device with this number.');
                     }
                 }
                 
